@@ -242,41 +242,79 @@
             const controls = document.createElement('div');
             controls.className = 'row-controls';
             
-            let input;
-            if (v === '--font-family') {
-                input = document.createElement('select');
+            if (v === '--font-family' || v === '--font-size-base') {
+                let input = document.createElement('select');
                 input.style.width = '145px';
-                input.innerHTML = `
-                    <option value="'Segoe UI', Tahoma, sans-serif">Sans-Serif</option>
-                    <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
-                    <option value="'Consolas', 'Courier New', monospace">Monospace</option>
-                `;
-            } else if (v === '--font-size-base') {
-                input = document.createElement('select');
-                input.style.width = '145px';
-                input.innerHTML = `
-                    <option value="12px">Small (12px)</option>
-                    <option value="13px">Standard (13px)</option>
-                    <option value="14px">Medium (14px)</option>
-                    <option value="16px">Large (16px)</option>
-                    <option value="18px">Extra Large (18px)</option>
-                `;
-            } else {
-                input = document.createElement('input');
-                input.type = 'color';
-                input.className = 'color-picker';
-            }
-            input.id = v;
-            
-            input.addEventListener('input', (e) => {
-                let currentId = document.getElementById('theme-selector').value;
-                if (themes[currentId]) {
-                    themes[currentId][v] = e.target.value;
-                    updateStyleTag(); // Updates preview instantly
+                if (v === '--font-family') {
+                    input.innerHTML = `
+                        <option value="'Segoe UI', Tahoma, sans-serif">Sans-Serif</option>
+                        <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                        <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                    `;
+                } else {
+                    input.innerHTML = `
+                        <option value="12px">Small (12px)</option>
+                        <option value="13px">Standard (13px)</option>
+                        <option value="14px">Medium (14px)</option>
+                        <option value="16px">Large (16px)</option>
+                        <option value="18px">Extra Large (18px)</option>
+                    `;
                 }
-            });
+                input.id = v;
+                input.addEventListener('input', (e) => {
+                    let currentId = document.getElementById('theme-selector').value;
+                    if (themes[currentId]) {
+                        themes[currentId][v] = e.target.value;
+                        updateStyleTag();
+                    }
+                });
+                controls.appendChild(input);
+            } else {
+                let wrapper = document.createElement('div');
+                wrapper.style.display = 'flex';
+                wrapper.style.gap = '5px';
+                
+                let colorInput = document.createElement('input');
+                colorInput.type = 'color';
+                colorInput.className = 'color-picker';
+                colorInput.id = v + '-color';
+                
+                let textInput = document.createElement('input');
+                textInput.type = 'text';
+                textInput.id = v;
+                textInput.style.width = '70px';
+                textInput.style.fontFamily = 'monospace';
+                textInput.style.fontSize = '11px';
+                textInput.style.padding = '0 4px';
+                textInput.style.border = '1px solid var(--input-border)';
+                textInput.style.borderRadius = '3px';
+                textInput.style.background = 'var(--input-bg)';
+                textInput.style.color = 'var(--input-text)';
+                
+                const updateTheme = (val) => {
+                    let currentId = document.getElementById('theme-selector').value;
+                    if (themes[currentId]) {
+                        themes[currentId][v] = val;
+                        updateStyleTag();
+                    }
+                };
+
+                colorInput.addEventListener('input', (e) => {
+                    textInput.value = e.target.value;
+                    updateTheme(e.target.value);
+                });
+                
+                textInput.addEventListener('input', (e) => {
+                    let val = e.target.value;
+                    updateTheme(val);
+                    colorInput.value = colorToHex(val);
+                });
+
+                wrapper.appendChild(colorInput);
+                wrapper.appendChild(textInput);
+                controls.appendChild(wrapper);
+            }
             
-            controls.appendChild(input);
             row.appendChild(label);
             row.appendChild(controls);
             container.appendChild(row);
@@ -303,10 +341,10 @@
             const input = document.getElementById(v);
             const val = themes[id][v];
             if (input && val) {
-                if (v === '--font-family' || v === '--font-size-base') {
-                    input.value = val;
-                } else {
-                    input.value = colorToHex(val);
+                input.value = val;
+                if (v !== '--font-family' && v !== '--font-size-base') {
+                    const colorInput = document.getElementById(v + '-color');
+                    if (colorInput) colorInput.value = colorToHex(val);
                 }
             }
         });
@@ -488,7 +526,7 @@
 
     // Fallback if fetch fails (e.g. executing index.html locally in Chrome without a server)
     function loadThemesFromDOMFallback() {
-        const knownThemes = ["", "dark", "ej-dark", "ocean", "hacker", "solarized", "gruvbox-light", "sepia", "solarized-light"];
+        const knownThemes = ["", "Classic Dark", "Ocean", "Hacker", "Solarized Dark", "Gruvbox Light", "Warm Sepia", "Solarized Light"];
         let hidden = document.createElement('div');
         hidden.style.display = 'none';
         document.body.appendChild(hidden);
@@ -521,7 +559,8 @@
             { selector: '.action-btn', vars: ['--row-bg', '--row-hover', '--border-color', '--text-sub'] },
             { selector: '.tab-btn.active', vars: ['--tab-active-bg', '--tab-active-text', '--border-color'] },
             { selector: '.tab-btn', vars: ['--tab-bg', '--tab-text', '--border-color'] },
-            { selector: '.switch', vars: ['--toggle-bg'] },
+            { selector: '.switch', vars: ['--toggle-bg', '--btn-success'] },
+            { selector: '.theme-switch', vars: ['--toggle-bg', '--btn-primary'] },
             { selector: 'input[type="radio"], input[type="checkbox"]', vars: ['--btn-primary'] },
             { selector: 'input[type="range"]', vars: ['--toggle-bg', '--btn-primary'] },
             { selector: 'select, input[type="text"], textarea', vars: ['--input-bg', '--input-border', '--input-text', '--input-placeholder'] },
