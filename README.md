@@ -52,3 +52,8 @@ If you want to completely replace the built-in themes for your add-in:
 ---
 
 *If you find this tool useful for your own Add-in development or parametric workflows, feel free to **[buy Lucy a dog treat on Ko-fi](https://ko-fi.com/makingwithanedj)**!
+
+***
+
+*Happy Making!*
+*— EdJ*
