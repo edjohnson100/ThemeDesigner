@@ -391,7 +391,8 @@
             let themeId = match[1] ? "" : match[2];
             let content = match[3];
             let vars = {};
-            const varRegex = /(--[\w-]+)\s*:\s*([^;]+);/g;
+            // Safely extract variables even if a trailing semicolon is missing
+            const varRegex = /(--[\w-]+)\s*:\s*([^;]+?)(?=\s*;|\s*$)/g;
             let vMatch;
             while ((vMatch = varRegex.exec(content)) !== null) {
                 vars[vMatch[1].trim()] = vMatch[2].trim();
