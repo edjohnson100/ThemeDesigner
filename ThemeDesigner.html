@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Designer</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Minor inline additions specifically for the editor layout */
+        .app-container { max-width: 900px; margin: 0 auto; }
+        .color-picker { padding: 0; border: 1px solid var(--input-border); border-radius: 3px; cursor: pointer; height: 24px; width: 48px; background: none; }
+        .preview-sticky { position: sticky; top: 15px; }
+        
+        /* Animation for highlighting corresponding variables */
+        @keyframes highlightPulse {
+            0%, 30% { border-color: var(--tab-active-text); box-shadow: 0 0 6px var(--tab-active-text); }
+            100% { border-color: var(--row-border); box-shadow: 0 0 0 transparent; }
+        }
+        .highlight-var {
+            animation: highlightPulse 1.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header" style="flex-direction: column; gap: 15px;">
+        <div style="display: flex; justify-content: space-between; width: 100%;">
+            <div>
+                <h2>🎨 Theme Designer Pro</h2>
+                <div class="sub-header">Live palette manager & editor for Fusion Add-ins</div>
+            </div>
+            <div class="controls-bar" style="margin-bottom: 0;">
+                <button class="btn-secondary icon-btn" onclick="document.getElementById('help-modal').style.display='flex'" title="How to use this tool">❓ Help</button>
+                <button class="btn-secondary icon-btn" onclick="triggerLoadFull()" title="Load an existing style.css file">📥 Import style.css</button>
+                <button class="btn-primary icon-btn" onclick="saveFullCSS()" title="Generate a brand new style.css file">📤 Export style.css</button>
+            </div>
+        </div>
+        <div class="controls-bar" style="width: 100%; background: var(--row-bg); padding: 10px; border-radius: 4px; border: 1px solid var(--border-color); box-sizing: border-box;">
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <span class="row-label" style="margin-right: 5px;">Active Theme:</span>
+                <select id="theme-selector" onchange="changeTheme(this.value)" style="width: 200px;"></select>
+                <button class="btn-secondary action-btn" onclick="addTheme()" title="Create New Theme (Copies Current)">➕</button>
+                <button class="btn-secondary action-btn" onclick="deleteTheme()" title="Delete Current Theme">🗑️</button>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button class="btn-secondary icon-btn" onclick="triggerLoadSingle()">📂 Load .json</button>
+                <button class="btn-secondary icon-btn" onclick="saveSingleTheme()">💾 Save .json</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="create-grid" style="align-items: start;">
+        
+        <!-- LEFT COLUMN: COLOR PICKERS -->
+        <div class="section">
+            <div class="section-header">
+                <h3>Variables</h3>
+            </div>
+            <!-- Scrollable container so it doesn't take up the whole screen -->
+            <div class="section-content data-container" id="variables-container" style="max-height: 75vh; overflow-y: auto;">
+                <!-- JS will dynamically populate the color rows here -->
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: PREVIEW UI -->
+        <div class="section preview-sticky">
+            <div class="section-header">
+                <h3>Live Preview</h3>
+            </div>
+            <div class="section-content">
+                
+                <div class="tabs">
+                    <button class="tab-btn active">Active Tab</button>
+                    <button class="tab-btn">Inactive Tab</button>
+                </div>
+                
+                <div class="data-container">
+                    <div class="data-row">
+                        <span class="row-label">Toggle Setting</span>
+                        <div class="row-controls">
+                            <label class="switch">
+                                <input type="checkbox" checked>
+                                <span class="theme-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="data-row">
+                        <span class="row-label">Dropdown Setting</span>
+                        <div class="row-controls">
+                            <select style="width: 100px;">
+                                <option>Option 1</option>
+                                <option>Option 2</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="data-row">
+                        <span class="row-label">Standard Radios</span>
+                        <div class="row-controls" style="gap: 10px;">
+                            <label style="display:flex; align-items:center; gap:3px; font-size:calc(var(--font-size-base) - 1px);"><input type="radio" name="rad" checked> Yes</label>
+                            <label style="display:flex; align-items:center; gap:3px; font-size:calc(var(--font-size-base) - 1px);"><input type="radio" name="rad"> No</label>
+                        </div>
+                    </div>
+                    
+                    <div class="data-row">
+                        <span class="row-label">Standard Checkbox</span>
+                        <div class="row-controls">
+                            <input type="checkbox" checked>
+                        </div>
+                    </div>
+                    
+                    <hr class="divider">
+                    
+                    <div class="data-row">
+                        <span class="row-label">Range Slider</span>
+                        <div class="row-controls" style="width: 100px;">
+                            <input type="range" min="0" max="100" value="50">
+                        </div>
+                    </div>
+                    
+                    <hr class="divider">
+                    
+                    <div class="input-group">
+                        <input type="text" placeholder="Text input placeholder...">
+                        <button class="action-btn">⋮</button>
+                    </div>
+
+                    <textarea placeholder="Textarea preview..."></textarea>
+                    
+                    <div class="create-grid">
+                        <button class="btn-primary">Primary</button>
+                        <button class="btn-secondary">Secondary</button>
+                        <button class="btn-success full-width">Success Button</button>
+                    </div>
+
+                    <div class="status-box info" style="display: block;">ℹ️ Information Status</div>
+                    <div class="status-box success" style="display: block;">✅ Success Status</div>
+                    <div class="status-box error" style="display: block;">❌ Error Status Message</div>
+
+                    <div class="modal-content" style="position: relative; width: 100%; max-width: none; box-sizing: border-box; box-shadow: none; margin-top: 10px;">
+                        <h3>Modal Title</h3>
+                        <span class="modal-label">This modal is embedded for live preview.</span>
+                        <div class="modal-actions">
+                            <button class="modal-btn btn-cancel">Cancel</button>
+                            <button class="modal-btn btn-save">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="help-modal">
+    <div class="modal-content" style="max-width: 500px; width: 90%;">
+        <h3>📖 How to Use Theme Designer</h3>
+        <div style="font-size: calc(var(--font-size-base) - 1px); line-height: 1.5; color: var(--text-main); max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+            <div class="status-box info" style="display: block; margin-top: 0; margin-bottom: 15px; text-align: left;">
+                <strong>💡 Tip:</strong> Click any element in the Live Preview to automatically highlight its corresponding color variables!
+            </div>
+            <p style="margin-top: 0;"><strong>✨ Creating a New Theme</strong></p>
+            <ol style="margin-top: 5px; padding-left: 20px;">
+                <li>Select a starting point from the <strong>Active Theme</strong> dropdown.</li>
+                <li>Click the <strong>➕</strong> button to duplicate it and provide a new ID.</li>
+                <li>Edit the colors using the pickers. Changes are saved instantly to memory!</li>
+            </ol>
+            
+            <p><strong>Updating an Existing Theme</strong></p>
+            <ol style="margin-top: 5px; padding-left: 20px;">
+                <li>Select the theme you want to update from the dropdown.</li>
+                <li>Adjust the color pickers on the left. Changes are applied instantly.</li>
+            </ol>
+            
+            <p><strong>Saving & Exporting</strong></p>
+            <ul style="margin-top: 5px; padding-left: 20px;">
+                <li><strong>📤 Export style.css:</strong> Generates a full, freshly compiled <code style="background: var(--input-bg); border: 1px solid var(--border-color); padding: 2px 4px; border-radius: 3px;">style.css</code> file combining the base layouts and all your active themes. Save this directly over your existing file.</li>
+                <li><strong>💾 Save .json:</strong> Exports only the currently active theme so you can share it or import it into another project.</li>
+            </ul>
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn btn-save" onclick="document.getElementById('help-modal').style.display='none'">Got it!</button>
+        </div>
+    </div>
+</div>
+
+<input type="file" id="file-input" style="display: none;" accept=".css,.json">
+
+<script>
+    const cssVariables = [
+        '--font-family', '--font-size-base',
+        '--bg-body', '--text-main', '--text-sub', '--border-color',
+        '--row-bg', '--row-border', '--row-hover',
+        '--input-bg', '--input-border', '--input-text', '--input-placeholder', '--toggle-bg',
+        '--header-hover', '--tab-bg', '--tab-active-bg', '--tab-text', '--tab-active-text',
+        '--btn-primary', '--btn-primary-hover', '--btn-success', '--btn-success-hover',
+        '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text',
+        '--status-success-bg', '--status-success-text',
+        '--status-error-bg', '--status-error-text',
+        '--status-info-bg', '--status-info-text'
+    ];
+
+    let themes = {}; // Memory storage: { themeId: { "--var": "value" } }
+    let baseCSS = ""; // Non-theme CSS rules (layout, structure)
+    let currentLoadAction = null;
+
+    async function init() {
+        createPickers();
+        
+        try {
+            const res = await fetch('style.css');
+            if (!res.ok) throw new Error("Could not fetch style.css");
+            const cssText = await res.text();
+            const parsed = parseStyleCSS(cssText);
+            themes = parsed.themes;
+            baseCSS = parsed.baseCSS;
+        } catch (e) {
+            console.warn("Could not fetch style.css automatically (CORS issue?). Falling back to DOM parsing.", e);
+            loadThemesFromDOMFallback();
+        }
+
+        updateThemeDropdown();
+        updateStyleTag();
+        changeTheme("");
+        setupFileInput();
+        setupPreviewHighlighter();
+    }
+
+    function createPickers() {
+        const container = document.getElementById('variables-container');
+        container.innerHTML = '';
+        cssVariables.forEach(v => {
+            const row = document.createElement('div');
+            row.className = 'data-row';
+            const label = document.createElement('span');
+            label.className = 'row-label';
+            label.textContent = v;
+            const controls = document.createElement('div');
+            controls.className = 'row-controls';
+            
+            let input;
+            if (v === '--font-family') {
+                input = document.createElement('select');
+                input.style.width = '145px';
+                input.innerHTML = `
+                    <option value="'Segoe UI', Tahoma, sans-serif">Sans-Serif</option>
+                    <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                    <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                `;
+            } else if (v === '--font-size-base') {
+                input = document.createElement('select');
+                input.style.width = '145px';
+                input.innerHTML = `
+                    <option value="12px">Small (12px)</option>
+                    <option value="13px">Standard (13px)</option>
+                    <option value="14px">Medium (14px)</option>
+                    <option value="16px">Large (16px)</option>
+                    <option value="18px">Extra Large (18px)</option>
+                `;
+            } else {
+                input = document.createElement('input');
+                input.type = 'color';
+                input.className = 'color-picker';
+            }
+            input.id = v;
+            
+            input.addEventListener('input', (e) => {
+                let currentId = document.getElementById('theme-selector').value;
+                if (themes[currentId]) {
+                    themes[currentId][v] = e.target.value;
+                    updateStyleTag(); // Updates preview instantly
+                }
+            });
+            
+            controls.appendChild(input);
+            row.appendChild(label);
+            row.appendChild(controls);
+            container.appendChild(row);
+        });
+    }
+
+    function colorToHex(color) {
+        if (!color) return "#000000";
+        color = color.trim();
+        if (color.startsWith('#')) {
+            if (color.length === 4) return '#' + color[1]+color[1] + color[2]+color[2] + color[3]+color[3];
+            return color.slice(0, 7); // Handle alpha hex
+        }
+        const match = color.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        if (match) {
+            return '#' + match.slice(1, 4).map(n => parseInt(n, 10).toString(16).padStart(2, '0')).join('');
+        }
+        return '#000000'; // Fallback
+    }
+
+    function updatePickers(id) {
+        if (!themes[id]) return;
+        cssVariables.forEach(v => {
+            const input = document.getElementById(v);
+            const val = themes[id][v];
+            if (input && val) {
+                if (v === '--font-family' || v === '--font-size-base') {
+                    input.value = val;
+                } else {
+                    input.value = colorToHex(val);
+                }
+            }
+        });
+    }
+
+    function changeTheme(id) {
+        document.getElementById('theme-selector').value = id;
+        if (id) {
+            document.body.setAttribute('data-theme', id);
+        } else {
+            document.body.removeAttribute('data-theme');
+        }
+        updatePickers(id);
+    }
+
+    function updateThemeDropdown() {
+        const select = document.getElementById('theme-selector');
+        const current = select.value;
+        select.innerHTML = '';
+        for (let id in themes) {
+            let opt = document.createElement('option');
+            opt.value = id;
+            opt.text = id === "" ? "Default Light (Base)" : id;
+            select.appendChild(opt);
+        }
+        if (themes[current]) select.value = current;
+    }
+
+    // --- THEME MANAGER LOGIC ---
+
+    function addTheme() {
+        let newId = prompt("Enter Name for new theme (e.g., 'Hot Pink'):");
+        if (!newId) return;
+        newId = newId.trim().replace(/[^a-zA-Z0-9 -]/g, '');
+        if (themes[newId]) return alert("Theme ID already exists!");
+        
+        let currentId = document.getElementById('theme-selector').value;
+        themes[newId] = { ...themes[currentId] }; // Duplicate current variables
+        
+        updateThemeDropdown();
+        updateStyleTag();
+        changeTheme(newId);
+    }
+
+    function deleteTheme() {
+        let currentId = document.getElementById('theme-selector').value;
+        if (currentId === "") return alert("Cannot delete the Default Light (Base) theme.");
+        if (confirm(`Delete theme '${currentId}'?`)) {
+            delete themes[currentId];
+            updateThemeDropdown();
+            updateStyleTag();
+            changeTheme("");
+        }
+    }
+
+    function updateStyleTag() {
+        let out = "";
+        for (let id in themes) {
+            let sel = id === "" ? ":root" : `[data-theme="${id}"]`;
+            out += `${sel} {\n`;
+            for (let v of cssVariables) {
+                if (themes[id][v]) out += `    ${v}: ${themes[id][v]};\n`;
+            }
+            out += `}\n`;
+        }
+        let styleTag = document.getElementById('dynamic-theme-overrides');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'dynamic-theme-overrides';
+            document.head.appendChild(styleTag);
+        }
+        styleTag.innerHTML = out;
+    }
+
+    // --- FILE I/O LOGIC ---
+
+    function parseStyleCSS(cssText) {
+        const themeRegex = /(?:\/\*[\s\S]*?\*\/\s*)?(?:(:root)|\[data-theme=["']?([^"']+)["']?\])\s*\{([^}]+)\}/g;
+        let match;
+        let parsedThemes = {};
+        while ((match = themeRegex.exec(cssText)) !== null) {
+            let themeId = match[1] ? "" : match[2];
+            let content = match[3];
+            let vars = {};
+            const varRegex = /(--[\w-]+)\s*:\s*([^;]+);/g;
+            let vMatch;
+            while ((vMatch = varRegex.exec(content)) !== null) {
+                vars[vMatch[1].trim()] = vMatch[2].trim();
+            }
+            parsedThemes[themeId] = vars;
+        }
+        let cleanCSS = cssText.replace(themeRegex, '').trim();
+        return { themes: parsedThemes, baseCSS: cleanCSS };
+    }
+
+    function generateFullCSS() {
+        let out = "";
+        let i = 1;
+        for (let id in themes) {
+            let comment = id === "" ? "Default Light" : id;
+            let sel = id === "" ? ":root" : `[data-theme="${id}"]`;
+            out += `/* ${i}. ${comment} */\n${sel} {\n`;
+            for (let v of cssVariables) {
+                if (themes[id][v]) out += `    ${v}: ${themes[id][v]};\n`;
+            }
+            out += `}\n\n`;
+            i++;
+        }
+        return out + baseCSS;
+    }
+
+    function downloadFile(content, mimeType, filename) {
+        const blob = new Blob([content], { type: mimeType });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+    }
+
+    function saveSingleTheme() {
+        let id = document.getElementById('theme-selector').value;
+        let data = { id: id, vars: themes[id] };
+        downloadFile(JSON.stringify(data, null, 2), "application/json", (id || "default") + ".theme.json");
+    }
+
+    function saveFullCSS() {
+        downloadFile(generateFullCSS(), "text/css", "style.css");
+    }
+
+    function triggerLoadSingle() {
+        currentLoadAction = 'single';
+        document.getElementById('file-input').accept = ".json";
+        document.getElementById('file-input').click();
+    }
+
+    function triggerLoadFull() {
+        currentLoadAction = 'full';
+        document.getElementById('file-input').accept = ".css";
+        document.getElementById('file-input').click();
+    }
+
+    function setupFileInput() {
+        document.getElementById('file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const content = ev.target.result;
+                if (currentLoadAction === 'full') {
+                    const parsed = parseStyleCSS(content);
+                    themes = parsed.themes;
+                    baseCSS = parsed.baseCSS;
+                    updateThemeDropdown();
+                    updateStyleTag();
+                    changeTheme("");
+                } else if (currentLoadAction === 'single') {
+                    try {
+                        const themeData = JSON.parse(content);
+                        if (themeData.vars && themeData.id !== undefined) {
+                            themes[themeData.id] = themeData.vars;
+                            updateThemeDropdown();
+                            updateStyleTag();
+                            changeTheme(themeData.id);
+                        }
+                    } catch(err) {
+                        alert("Could not parse JSON theme file.");
+                    }
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+    }
+
+    // Fallback if fetch fails (e.g. executing index.html locally in Chrome without a server)
+    function loadThemesFromDOMFallback() {
+        const knownThemes = ["", "dark", "ej-dark", "ocean", "hacker", "solarized", "gruvbox-light", "sepia", "solarized-light"];
+        let hidden = document.createElement('div');
+        hidden.style.display = 'none';
+        document.body.appendChild(hidden);
+
+        knownThemes.forEach(id => {
+            if (id) hidden.setAttribute('data-theme', id);
+            else hidden.removeAttribute('data-theme');
+            
+            let styles = getComputedStyle(hidden);
+            themes[id] = {};
+            cssVariables.forEach(v => {
+                let val = styles.getPropertyValue(v).trim();
+                if (val) themes[id][v] = val;
+            });
+        });
+        document.body.removeChild(hidden);
+        baseCSS = "\n/* Note: base layout CSS was not loaded. Please Import style.css first if you want to export a full file. */\n";
+    }
+
+    // --- INTERACTIVE PREVIEW HIGHLIGHTER ---
+    function setupPreviewHighlighter() {
+        const previewContainer = document.querySelector('.preview-sticky');
+        if (!previewContainer) return;
+        
+        // Map selectors to the variables that control their colors
+        const elementMap = [
+            { selector: '.btn-primary, .btn-save', vars: ['--btn-primary', '--btn-primary-hover'] },
+            { selector: '.btn-secondary, .btn-cancel', vars: ['--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text'] },
+            { selector: '.btn-success', vars: ['--btn-success', '--btn-success-hover'] },
+            { selector: '.action-btn', vars: ['--row-bg', '--row-hover', '--border-color', '--text-sub'] },
+            { selector: '.tab-btn.active', vars: ['--tab-active-bg', '--tab-active-text', '--border-color'] },
+            { selector: '.tab-btn', vars: ['--tab-bg', '--tab-text', '--border-color'] },
+            { selector: '.switch', vars: ['--toggle-bg'] },
+            { selector: 'input[type="radio"], input[type="checkbox"]', vars: ['--btn-primary'] },
+            { selector: 'input[type="range"]', vars: ['--toggle-bg', '--btn-primary'] },
+            { selector: 'select, input[type="text"], textarea', vars: ['--input-bg', '--input-border', '--input-text', '--input-placeholder'] },
+            { selector: '.status-box.info', vars: ['--status-info-bg', '--status-info-text'] },
+            { selector: '.status-box.success', vars: ['--status-success-bg', '--status-success-text'] },
+            { selector: '.status-box.error', vars: ['--status-error-bg', '--status-error-text'] },
+            { selector: '.modal-content', vars: ['--row-bg', '--border-color', '--text-main'] },
+            { selector: 'hr.divider', vars: ['--border-color'] },
+            { selector: '.data-row', vars: ['--row-bg', '--row-border', '--text-main'] }
+        ];
+
+        previewContainer.addEventListener('click', (e) => {
+            let matchedVars = [];
+            // Find the most specific match
+            for (let item of elementMap) {
+                if (e.target.closest(item.selector)) { matchedVars = item.vars; break; }
+            }
+            
+            // If clicking empty background area
+            if (matchedVars.length === 0 && e.target.closest('.section-content')) { matchedVars = ['--bg-body', '--text-main', '--text-sub']; }
+
+            if (matchedVars.length > 0) {
+                document.querySelectorAll('.highlight-var').forEach(el => el.classList.remove('highlight-var'));
+                
+                let firstRow = null;
+                matchedVars.forEach(v => {
+                    const input = document.getElementById(v);
+                    if (input && input.closest('.data-row')) {
+                        const row = input.closest('.data-row');
+                        void row.offsetWidth; // Trigger reflow to restart CSS animation
+                        row.classList.add('highlight-var');
+                        if (!firstRow) firstRow = row;
+                    }
+                });
+                if (firstRow) { firstRow.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+            }
+        });
+    }
+
+    // Run setup on load
+    window.onload = init;
+</script>
+
+</body>
+</html>
