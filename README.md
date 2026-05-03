@@ -1,8 +1,17 @@
 # 🎨 Theme Designer Pro
 
+**Version:** 1.0.1
+
+**Author:** Ed Johnson (Making With An EdJ)
+
 **A web-based visual theme editor and companion tool for Autodesk Fusion Add-ins.**
 
 **[👉 CLICK HERE TO USE THE LIVE THEME DESIGNER](https://edjohnson100.github.io/ThemeDesigner/)**
+
+---
+## ✨ What's New in v1.0.1
+
+* **Theme accent border:** Exported `style.css` files now include a subtle primary-color border on the palette body. If you import an older `style.css` that is missing the border, Theme Designer will automatically add it when you export again — no manual editing required.
 
 ---
 
