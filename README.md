@@ -31,6 +31,10 @@ While it can be adapted for any web project, it was specifically built as a comp
 
 ---
 
+## Using the Theme Standard in Your Own Project
+
+Theme Designer Pro's theme system (CSS custom properties + a `data-theme` attribute) isn't tied to LiveUtilities or Fusion — it can be dropped into any HTML/CSS/JS project. See **[Theme_Designer_Pro_Inetgration_Guide.md](Theme_Designer_Pro_Inetgration_Guide.md)** for a step-by-step walkthrough (human- and AI-assistant-friendly) covering the variable naming standard, wiring up theme switching, persisting user choices, and importing/exporting `.theme.json` files.
+
 ## How to Use with LiveUtilities
 
 You don't need to download this repository to use the tool! Simply visit the **Live Website**.
