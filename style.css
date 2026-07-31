@@ -32,6 +32,9 @@
     --status-error-text: #721c24;
     --status-info-bg: #cce5ff;
     --status-info-text: #004085;
+    --banner-warning-bg: #fff8e1;
+    --banner-warning-text: #8a6d00;
+    --banner-warning-border: #e6c200;
 }
 
 /* 2. Classic Dark */
@@ -68,6 +71,9 @@
     --status-error-text: #f8d7da;
     --status-info-bg: #1d364d;
     --status-info-text: #cce5ff;
+    --banner-warning-bg: #3a3210;
+    --banner-warning-text: #f0d878;
+    --banner-warning-border: #6b5c1a;
 }
 
 /* 3. Ocean */
@@ -104,6 +110,9 @@
     --status-error-text: #fecaca;
     --status-info-bg: #1e3a8a;
     --status-info-text: #bfdbfe;
+    --banner-warning-bg: #451a03;
+    --banner-warning-text: #fcd34d;
+    --banner-warning-border: #92400e;
 }
 
 /* 4. Hacker */
@@ -140,6 +149,9 @@
     --status-error-text: #ff0000;
     --status-info-bg: #001133;
     --status-info-text: #0088ff;
+    --banner-warning-bg: #332b00;
+    --banner-warning-text: #ffff00;
+    --banner-warning-border: #666600;
 }
 
 /* 5. Solarized Dark */
@@ -176,6 +188,9 @@
     --status-error-text: #dc322f;
     --status-info-bg: #073642;
     --status-info-text: #268bd2;
+    --banner-warning-bg: #3a2f00;
+    --banner-warning-text: #b58900;
+    --banner-warning-border: #6b5900;
 }
 
 /* 6. Gruvbox Light */
@@ -212,6 +227,9 @@
     --status-error-text: #9d0006;
     --status-info-bg: #ebdbb2;
     --status-info-text: #076678;
+    --banner-warning-bg: #f2e5bc;
+    --banner-warning-text: #b57614;
+    --banner-warning-border: #d79921;
 }
 
 /* 7. Warm Sepia */
@@ -248,6 +266,9 @@
     --status-error-text: #8b0000;
     --status-info-bg: #dcece8;
     --status-info-text: #2f4f4f;
+    --banner-warning-bg: #f0dfc0;
+    --banner-warning-text: #8a5a00;
+    --banner-warning-border: #d1a662;
 }
 
 /* 8. Solarized Light */
@@ -284,6 +305,9 @@
     --status-error-text: #dc322f;
     --status-info-bg: #eee8d5;
     --status-info-text: #268bd2;
+    --banner-warning-bg: #fdf1d0;
+    --banner-warning-text: #965a00;
+    --banner-warning-border: #cb9b1e;
 }
 
 /* 9. Hot Pink */
@@ -320,6 +344,9 @@
     --status-error-text: #721c24;
     --status-info-bg: #feffcc;
     --status-info-text: #828500;
+    --banner-warning-bg: #fff3cd;
+    --banner-warning-text: #856404;
+    --banner-warning-border: #ffe69c;
 }
 
 body { background-color: var(--bg-body); border: 2px solid var(--btn-primary); color: var(--text-main); font-family: var(--font-family); margin: 0; padding: 15px; font-size: var(--font-size-base); transition: background-color 0.3s, color 0.3s; }
@@ -434,6 +461,11 @@ hr.divider { border: 0; border-top: 1px solid var(--border-color); margin: 15px 
 .status-box.error { background: var(--status-error-bg); color: var(--status-error-text); border: 1px solid var(--status-error-text); display: block; }
 .status-box.info { background: var(--status-info-bg); color: var(--status-info-text); border: 1px solid var(--status-info-text); display: block; }
 .empty-state { padding: 10px; color: var(--text-sub); text-align: center; font-style: italic; }
+
+/* ALERT / EDIT BANNER -- optional; used by add-ins with an inline warning
+   strip (e.g. GridfinityGeneratorPlus's "unsaved edits" banner). Distinct
+   from .status-box, which is a transient action-result message. */
+.banner-warning { margin-bottom: 15px; padding: 8px 10px; border-radius: 4px; font-size: calc(var(--font-size-base) - 1px); background: var(--banner-warning-bg); color: var(--banner-warning-text); border: 1px solid var(--banner-warning-border); }
 
 /* TOGGLES */
 .theme-switch { position: relative; display: inline-block; width: 34px; height: 18px; }

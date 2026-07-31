@@ -135,6 +135,8 @@
                         <button class="btn-success full-width">Success Button</button>
                     </div>
 
+                    <div class="banner-warning">⚠️ Unsaved edits — optional alert/banner strip</div>
+
                     <div class="status-box info" style="display: block;">ℹ️ Information Status</div>
                     <div class="status-box success" style="display: block;">✅ Success Status</div>
                     <div class="status-box error" style="display: block;">❌ Error Status Message</div>
@@ -201,7 +203,8 @@
         '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text',
         '--status-success-bg', '--status-success-text',
         '--status-error-bg', '--status-error-text',
-        '--status-info-bg', '--status-info-text'
+        '--status-info-bg', '--status-info-text',
+        '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border'
     ];
 
     let themes = {}; // Memory storage: { themeId: { "--var": "value" } }
@@ -574,6 +577,7 @@
             { selector: '.status-box.info', vars: ['--status-info-bg', '--status-info-text'] },
             { selector: '.status-box.success', vars: ['--status-success-bg', '--status-success-text'] },
             { selector: '.status-box.error', vars: ['--status-error-bg', '--status-error-text'] },
+            { selector: '.banner-warning', vars: ['--banner-warning-bg', '--banner-warning-text', '--banner-warning-border'] },
             { selector: '.modal-content', vars: ['--row-bg', '--border-color', '--text-main'] },
             { selector: 'hr.divider', vars: ['--border-color'] },
             { selector: '.data-row', vars: ['--row-bg', '--row-border', '--text-main'] }

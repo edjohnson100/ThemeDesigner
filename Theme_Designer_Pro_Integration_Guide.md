@@ -14,7 +14,7 @@ Every themeable color/style value in your UI is written as `var(--some-name)` in
 
 ## 2. The Variable Set
 
-These are the 25 variables used by Theme Designer Pro. You don't have to use all of them — pick the subset that matches what your UI actually has (e.g., a UI with no tabs can skip the `--tab-*` vars). You *can* also add your own project-specific variables; the tool doesn't hardcode the list, it reads whatever's in your CSS.
+These are the 28 variables used by Theme Designer Pro. You don't have to use all of them — pick the subset that matches what your UI actually has (e.g., a UI with no tabs can skip the `--tab-*` vars, and a UI with no inline warning strip can skip `--banner-warning-*`). You *can* also add your own project-specific variables; the tool doesn't hardcode the list, it reads whatever's in your CSS.
 
 ```css
 :root {
@@ -63,6 +63,11 @@ These are the 25 variables used by Theme Designer Pro. You don't have to use all
     --status-error-text: #721c24;
     --status-info-bg: #cce5ff;
     --status-info-text: #004085;
+
+    /* Alert / edit banner (optional) */
+    --banner-warning-bg: #fff8e1;
+    --banner-warning-text: #8a6d00;
+    --banner-warning-border: #e6c200;
 }
 ```
 
