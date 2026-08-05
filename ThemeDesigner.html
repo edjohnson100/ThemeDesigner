@@ -27,7 +27,7 @@
     <div class="header" style="flex-direction: column; gap: 15px;">
         <div style="display: flex; justify-content: space-between; width: 100%;">
             <div>
-                <h2>🎨 Theme Designer Pro</h2>
+                <h2>🎨 Theme Designer Pro <span id="app-version" class="sub-header" style="text-transform: none; letter-spacing: normal; font-weight: normal;"></span></h2>
                 <div class="sub-header">Live palette manager & editor for Fusion Add-ins</div>
             </div>
             <div class="controls-bar" style="margin-bottom: 0;">
@@ -193,6 +193,8 @@
 <input type="file" id="file-input" style="display: none;" accept=".css,.json">
 
 <script>
+    const APP_VERSION = '1.1.0';
+
     const cssVariables = [
         '--font-family', '--font-size-base',
         '--bg-body', '--text-main', '--text-sub', '--border-color',
@@ -212,6 +214,7 @@
     let currentLoadAction = null;
 
     async function init() {
+        document.getElementById('app-version').textContent = `v${APP_VERSION}`;
         createPickers();
         
         try {
@@ -578,6 +581,8 @@
             { selector: '.status-box.success', vars: ['--status-success-bg', '--status-success-text'] },
             { selector: '.status-box.error', vars: ['--status-error-bg', '--status-error-text'] },
             { selector: '.banner-warning', vars: ['--banner-warning-bg', '--banner-warning-text', '--banner-warning-border'] },
+            { selector: '.section-header', vars: ['--row-bg', '--header-hover'] },
+            { selector: '.modal-label', vars: ['--text-sub'] },
             { selector: '.modal-content', vars: ['--row-bg', '--border-color', '--text-main'] },
             { selector: 'hr.divider', vars: ['--border-color'] },
             { selector: '.data-row', vars: ['--row-bg', '--row-border', '--text-main'] }

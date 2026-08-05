@@ -1,6 +1,6 @@
 # 🎨 Theme Designer Pro
 
-**Version:** 1.0.1
+**Version:** 1.1.0
 
 **Author:** Ed Johnson (Making With An EdJ)
 
@@ -9,7 +9,14 @@
 **[👉 CLICK HERE TO USE THE LIVE THEME DESIGNER](https://edjohnson100.github.io/ThemeDesigner/)**
 
 ---
-## ✨ What's New in v1.0.1
+## ✨ What's New in v1.1.0
+
+* **Version display:** The app now shows its version number in the header, so you can tell at a glance which build you're running.
+* **Banner/alert variable:** Added `--banner-warning-bg` / `--banner-warning-text` / `--banner-warning-border` for an optional inline warning strip (e.g. an "unsaved edits" banner), bringing the total to 35 themeable variables.
+* **Fixed a dead variable:** `--header-hover` previously had no effect anywhere in the app — it's now wired to a hover state on panel headers.
+* **Fixed Live Preview highlighting:** Clicking the modal's secondary-text caption now correctly highlights the `--text-sub` picker instead of being swallowed by the parent modal's variables.
+
+## What's New in v1.0.1
 
 * **Theme accent border:** Exported `style.css` files now include a subtle primary-color border on the palette body. If you import an older `style.css` that is missing the border, Theme Designer will automatically add it when you export again — no manual editing required.
 
