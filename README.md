@@ -15,6 +15,8 @@
 * **Banner/alert variable:** Added `--banner-warning-bg` / `--banner-warning-text` / `--banner-warning-border` for an optional inline warning strip (e.g. an "unsaved edits" banner), bringing the total to 35 themeable variables.
 * **Fixed a dead variable:** `--header-hover` previously had no effect anywhere in the app — it's now wired to a hover state on panel headers.
 * **Fixed Live Preview highlighting:** Clicking the modal's secondary-text caption now correctly highlights the `--text-sub` picker instead of being swallowed by the parent modal's variables.
+* **Focused variable list:** Clicking a Live Preview element now hides every picker row except the ones that actually control it. A **✕ Show All** link appears in the Variables panel header to clear the filter.
+* **Longer highlight glow:** The pulse animation on a matched picker row now lasts 4.5s (up from 1.5s), giving you more time to spot it.
 
 ## What's New in v1.0.1
 

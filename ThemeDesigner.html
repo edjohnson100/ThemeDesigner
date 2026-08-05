@@ -17,7 +17,7 @@
             100% { border-color: var(--row-border); box-shadow: 0 0 0 transparent; }
         }
         .highlight-var {
-            animation: highlightPulse 1.5s ease-out;
+            animation: highlightPulse 4.5s ease-out;
         }
     </style>
 </head>
@@ -56,6 +56,7 @@
         <div class="section">
             <div class="section-header">
                 <h3>Variables</h3>
+                <span id="filter-clear" class="row-label" style="display: none; font-weight: normal; color: var(--tab-active-text); cursor: pointer;" onclick="event.stopPropagation(); clearVariableFilter();">✕ Show All</span>
             </div>
             <!-- Scrollable container so it doesn't take up the whole screen -->
             <div class="section-content data-container" id="variables-container" style="max-height: 75vh; overflow-y: auto;">
@@ -560,6 +561,22 @@
     }
 
     // --- INTERACTIVE PREVIEW HIGHLIGHTER ---
+    function filterVariableRows(matchedVars) {
+        cssVariables.forEach(v => {
+            const row = document.getElementById(v)?.closest('.data-row');
+            if (row) row.style.display = matchedVars.includes(v) ? '' : 'none';
+        });
+        document.getElementById('filter-clear').style.display = 'inline';
+    }
+
+    function clearVariableFilter() {
+        cssVariables.forEach(v => {
+            const row = document.getElementById(v)?.closest('.data-row');
+            if (row) row.style.display = '';
+        });
+        document.getElementById('filter-clear').style.display = 'none';
+    }
+
     function setupPreviewHighlighter() {
         const previewContainer = document.querySelector('.preview-sticky');
         if (!previewContainer) return;
@@ -599,8 +616,9 @@
             if (matchedVars.length === 0 && e.target.closest('.section-content')) { matchedVars = ['--bg-body', '--text-main', '--text-sub']; }
 
             if (matchedVars.length > 0) {
+                filterVariableRows(matchedVars);
                 document.querySelectorAll('.highlight-var').forEach(el => el.classList.remove('highlight-var'));
-                
+
                 let firstRow = null;
                 matchedVars.forEach(v => {
                     const input = document.getElementById(v);
