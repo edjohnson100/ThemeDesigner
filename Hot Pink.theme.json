@@ -22,8 +22,10 @@
     "--tab-active-text": "#0078d4",
     "--btn-primary": "#e401dd",
     "--btn-primary-hover": "#bc10ad",
+    "--btn-primary-text": "#000000",
     "--btn-success": "#29a6a8",
     "--btn-success-hover": "#218687",
+    "--btn-success-text": "#000000",
     "--btn-secondary": "#e0e0e0",
     "--btn-secondary-hover": "#d0d0d0",
     "--btn-secondary-text": "#333333",
@@ -32,6 +34,12 @@
     "--status-error-bg": "#f7d4f0",
     "--status-error-text": "#721c24",
     "--status-info-bg": "#feffcc",
-    "--status-info-text": "#828500"
+    "--status-info-text": "#828500",
+    "--banner-warning-bg": "#fff3cd",
+    "--banner-warning-text": "#856404",
+    "--banner-warning-border": "#ffe69c",
+    "--focus-ring": "#e401dd",
+    "--text-danger": "#721c24",
+    "--overlay-bg": "rgba(0,0,0,0.6)"
   }
 }

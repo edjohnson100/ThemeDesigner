@@ -19,6 +19,20 @@
         .highlight-var {
             animation: highlightPulse 4.5s ease-out;
         }
+
+        /* Per-row WCAG contrast badge, populated by updateContrastResults() */
+        .contrast-badge { display: inline-block; width: 14px; text-align: center; font-size: 11px; font-weight: bold; cursor: help; flex-shrink: 0; }
+        .contrast-badge:empty { width: 0; }
+        .contrast-badge.contrast-fail { color: var(--text-danger); }
+        .contrast-badge.contrast-unevaluated { color: var(--text-sub); font-weight: normal; }
+        .contrast-badge.contrast-pass-large { color: var(--banner-warning-text); }
+        .contrast-badge.contrast-pass-aa { color: var(--btn-success); }
+        /* Fails every one of this row's pairs, but only pairs already flagged "accepted" (see CLAUDE.md) */
+        .contrast-badge.contrast-accepted { color: var(--text-sub); font-weight: normal; }
+
+        /* Suggest-a-fix link, shown only next to a row with a real (non-accepted) fail */
+        .contrast-fix-link { display: none; font-size: 11px; cursor: pointer; flex-shrink: 0; margin-left: 2px; }
+        .contrast-fix-link:hover { opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -42,10 +56,21 @@
                 <select id="theme-selector" onchange="changeTheme(this.value)" style="width: 200px;"></select>
                 <button class="btn-secondary action-btn" onclick="addTheme()" title="Create New Theme (Copies Current)">➕</button>
                 <button class="btn-secondary action-btn" onclick="deleteTheme()" title="Delete Current Theme">🗑️</button>
+                <span id="contrast-summary" style="font-size: calc(var(--font-size-base) - 1px); font-weight: bold; color: var(--text-danger); margin-left: 6px;"></span>
             </div>
             <div style="display: flex; gap: 5px;">
                 <button class="btn-secondary icon-btn" onclick="triggerLoadSingle()">📂 Load .json</button>
                 <button class="btn-secondary icon-btn" onclick="saveSingleTheme()">💾 Save .json</button>
+            </div>
+        </div>
+        <div class="controls-bar" style="width: 100%; background: var(--row-bg); padding: 10px; border-radius: 4px; border: 1px solid var(--border-color); box-sizing: border-box;">
+            <div style="display: flex; gap: 5px; align-items: center;">
+                <span class="row-label" style="margin-right: 5px; flex-grow: 0;">Theme Set:</span>
+                <span id="theme-set-label" class="sub-header" style="font-style: normal;"></span>
+            </div>
+            <div style="display: flex; gap: 5px;">
+                <button class="btn-secondary icon-btn" onclick="loadDemoThemes()" title="Load a frozen snapshot with real, known contrast issues — including Solarized Dark/Light, kept only here as demonstration themes — so you can see the checker flag actual problems">⚠️ Load Demo (has warnings)</button>
+                <button class="btn-secondary icon-btn" onclick="loadCompliantThemes()" title="Reload the shipped, contrast-checked theme set">✅ Load Compliant</button>
             </div>
         </div>
     </div>
@@ -191,10 +216,24 @@
     </div>
 </div>
 
+<!-- SUGGEST-A-FIX CONFIRMATION MODAL -->
+<div class="modal-overlay" id="fix-confirm-modal">
+    <div class="modal-content" style="max-width: 380px; width: 90%;">
+        <h3>🔧 Suggested Fix</h3>
+        <div id="fix-confirm-body" style="font-size: calc(var(--font-size-base) - 1px); line-height: 1.5; color: var(--text-main);">
+            <!-- populated by openFixConfirmModal() -->
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn btn-cancel" onclick="closeFixConfirmModal()">Cancel</button>
+            <button class="modal-btn btn-save" onclick="confirmApplyFix()">Apply Fix</button>
+        </div>
+    </div>
+</div>
+
 <input type="file" id="file-input" style="display: none;" accept=".css,.json">
 
 <script>
-    const APP_VERSION = '1.1.0';
+    const APP_VERSION = '1.4.0';
 
     const cssVariables = [
         '--font-family', '--font-size-base',
@@ -202,27 +241,380 @@
         '--row-bg', '--row-border', '--row-hover',
         '--input-bg', '--input-border', '--input-text', '--input-placeholder', '--toggle-bg',
         '--header-hover', '--tab-bg', '--tab-active-bg', '--tab-text', '--tab-active-text',
-        '--btn-primary', '--btn-primary-hover', '--btn-success', '--btn-success-hover',
+        '--btn-primary', '--btn-primary-hover', '--btn-primary-text',
+        '--btn-success', '--btn-success-hover', '--btn-success-text',
         '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text',
         '--status-success-bg', '--status-success-text',
         '--status-error-bg', '--status-error-text',
         '--status-info-bg', '--status-info-text',
-        '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border'
+        '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border',
+        '--focus-ring', '--text-danger', '--overlay-bg'
     ];
 
     let themes = {}; // Memory storage: { themeId: { "--var": "value" } }
     let baseCSS = ""; // Non-theme CSS rules (layout, structure)
     let currentLoadAction = null;
 
+    // --- CONTRAST ENGINE (WCAG 2.x relative luminance / contrast ratio) ---
+    // Scope: hex3/hex4/hex6/hex8, rgb()/rgba(), and `transparent`. Anything else (named
+    // colors, gradients, unresolved var(), malformed input) parses to null and is reported
+    // as "unevaluated" rather than guessed. Alpha < 1 is also reported "unevaluated" rather
+    // than composited against an assumed background, per the same rule.
+
+    function parseColor(str) {
+        if (!str) return null;
+        str = str.trim();
+        if (str.toLowerCase() === 'transparent') return { r: 0, g: 0, b: 0, a: 0 };
+
+        if (str[0] === '#') {
+            let hex = str.slice(1);
+            if (hex.length === 3 || hex.length === 4) hex = hex.split('').map(c => c + c).join('');
+            if ((hex.length !== 6 && hex.length !== 8) || !/^[0-9a-fA-F]+$/.test(hex)) return null;
+            return {
+                r: parseInt(hex.slice(0, 2), 16),
+                g: parseInt(hex.slice(2, 4), 16),
+                b: parseInt(hex.slice(4, 6), 16),
+                a: hex.length === 8 ? parseInt(hex.slice(6, 8), 16) / 255 : 1
+            };
+        }
+
+        const rgbMatch = str.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+        if (rgbMatch) {
+            return {
+                r: parseInt(rgbMatch[1], 10),
+                g: parseInt(rgbMatch[2], 10),
+                b: parseInt(rgbMatch[3], 10),
+                a: rgbMatch[4] !== undefined ? parseFloat(rgbMatch[4]) : 1
+            };
+        }
+
+        return null; // Unsupported: named colors, gradients, var(...), etc.
+    }
+
+    function relativeLuminance({ r, g, b }) {
+        const chan = (v) => {
+            v /= 255;
+            return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        };
+        return 0.2126 * chan(r) + 0.7152 * chan(g) + 0.0722 * chan(b);
+    }
+
+    function contrastRatio(colorA, colorB) {
+        const l1 = relativeLuminance(colorA);
+        const l2 = relativeLuminance(colorB);
+        const lighter = Math.max(l1, l2);
+        const darker = Math.min(l1, l2);
+        return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    // role: 'normal-text' (4.5:1 AA, 3:1 large-text-only) or 'ui-component' (3:1 AA, no large-text tier)
+    function classifyContrast(ratio, role) {
+        if (ratio >= 4.5) return 'pass-aa';
+        if (role === 'normal-text' && ratio >= 3) return 'pass-large';
+        if (role === 'ui-component' && ratio >= 3) return 'pass-aa';
+        return 'fail';
+    }
+
+    function checkContrastPair(fgValue, bgValue, role) {
+        const fg = parseColor(fgValue);
+        const bg = parseColor(bgValue);
+        if (!fg || !bg || fg.a < 1 || bg.a < 1) return { status: 'unevaluated', ratio: null };
+        const ratio = contrastRatio(fg, bg);
+        return { status: classifyContrast(ratio, role), ratio };
+    }
+
+    // Built-in semantic pairs, trimmed to tokens that actually exist in the standard 40-variable set.
+    // `accepted: true` marks a pair as a known, by-design warning (decorative hairlines/borders that
+    // are also distinguished by a background-color difference elsewhere) — not something to chase to
+    // a green checkmark. See CLAUDE.md's v1.3.0+ notes before changing which pairs carry this flag.
+    const CONTRAST_PAIRS = [
+        { fg: '--text-main', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--text-sub', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--text-main', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--text-sub', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--input-text', bg: '--input-bg', role: 'normal-text' },
+        { fg: '--input-placeholder', bg: '--input-bg', role: 'normal-text' },
+        { fg: '--tab-text', bg: '--tab-bg', role: 'normal-text' },
+        { fg: '--tab-active-text', bg: '--tab-active-bg', role: 'normal-text' },
+        { fg: '--btn-primary-text', bg: '--btn-primary', role: 'normal-text' },
+        { fg: '--btn-primary-text', bg: '--btn-primary-hover', role: 'normal-text' },
+        { fg: '--btn-success-text', bg: '--btn-success', role: 'normal-text' },
+        { fg: '--btn-success-text', bg: '--btn-success-hover', role: 'normal-text' },
+        { fg: '--btn-secondary-text', bg: '--btn-secondary', role: 'normal-text' },
+        { fg: '--btn-secondary-text', bg: '--btn-secondary-hover', role: 'normal-text' },
+        { fg: '--status-success-text', bg: '--status-success-bg', role: 'normal-text' },
+        { fg: '--status-error-text', bg: '--status-error-bg', role: 'normal-text' },
+        { fg: '--status-info-text', bg: '--status-info-bg', role: 'normal-text' },
+        { fg: '--banner-warning-text', bg: '--banner-warning-bg', role: 'normal-text' },
+        { fg: '--text-danger', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--input-border', bg: '--input-bg', role: 'ui-component', accepted: true },
+        { fg: '--input-border', bg: '--bg-body', role: 'ui-component', accepted: true },
+        { fg: '--border-color', bg: '--bg-body', role: 'ui-component', accepted: true },
+        { fg: '--banner-warning-border', bg: '--banner-warning-bg', role: 'ui-component', accepted: true }
+    ];
+
+    function runContrastChecks(vars) {
+        if (!vars) return [];
+        return CONTRAST_PAIRS.map(pair => ({
+            fgVar: pair.fg, bgVar: pair.bg, role: pair.role, accepted: !!pair.accepted,
+            ...checkContrastPair(vars[pair.fg], vars[pair.bg], pair.role)
+        }));
+    }
+
+    // --- Suggest-a-fix: same-hue lightness search, used only for real (non-accepted) fails ---
+
+    function rgbToHsl({ r, g, b }) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                default: h = (r - g) / d + 4;
+            }
+            h /= 6;
+        }
+        return { h, s, l };
+    }
+
+    function hslToRgb({ h, s, l }) {
+        if (s === 0) {
+            const v = Math.round(l * 255);
+            return { r: v, g: v, b: v };
+        }
+        const hue2rgb = (p, q, t) => {
+            if (t < 0) t += 1;
+            if (t > 1) t -= 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        return {
+            r: Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+            g: Math.round(hue2rgb(p, q, h) * 255),
+            b: Math.round(hue2rgb(p, q, h - 1 / 3) * 255)
+        };
+    }
+
+    function rgbToHex({ r, g, b }) {
+        return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+    }
+
+    // constraints: [{ bg: {r,g,b}, threshold: number }, ...] — every constraint must be met.
+    // Searches lightness in both directions along the color's current hue/saturation and returns
+    // whichever direction reaches all thresholds in fewer steps (the smaller visual change), or null
+    // if the color already meets every constraint or no in-range lightness satisfies all of them.
+    function computeSuggestedColor(fgColor, constraints) {
+        if (!constraints.length) return null;
+        const worstScore = (rgb) => Math.min(...constraints.map(c => contrastRatio(rgb, c.bg) / c.threshold));
+        if (worstScore(fgColor) >= 1) return null;
+
+        const hsl = rgbToHsl(fgColor);
+        const search = (dir) => {
+            for (let step = 1; step <= 100; step++) {
+                const l = hsl.l + dir * step * 0.01;
+                if (l < 0 || l > 1) return null;
+                const candidate = hslToRgb({ h: hsl.h, s: hsl.s, l });
+                if (worstScore(candidate) >= 1) return { l, rgb: candidate };
+            }
+            return null;
+        };
+
+        const lighter = search(1);
+        const darker = search(-1);
+        let chosen = null;
+        if (lighter && darker) {
+            chosen = Math.abs(lighter.l - hsl.l) <= Math.abs(darker.l - hsl.l) ? lighter : darker;
+        } else {
+            chosen = lighter || darker;
+        }
+        return chosen ? rgbToHex(chosen.rgb) : null;
+    }
+
+    // Gathers this variable's real (non-accepted) pairs from the active theme and suggests a fix.
+    // Returns a hex string, or null if there's nothing to suggest (already passes, unparseable, or
+    // no in-range color satisfies every relevant pair at once).
+    function suggestFix(fgVar) {
+        const currentId = document.getElementById('theme-selector').value;
+        const vars = themes[currentId];
+        if (!vars) return null;
+        const fgColor = parseColor(vars[fgVar]);
+        if (!fgColor) return null;
+
+        const constraints = CONTRAST_PAIRS
+            .filter(p => p.fg === fgVar && !p.accepted)
+            .map(p => {
+                const bg = parseColor(vars[p.bg]);
+                return bg ? { bg, threshold: p.role === 'normal-text' ? 4.5 : 3 } : null;
+            })
+            .filter(Boolean);
+
+        return computeSuggestedColor(fgColor, constraints);
+    }
+
+    // Applies a value to a variable exactly as a manual picker edit would: updates the theme data,
+    // syncs both the text and color inputs, and re-renders (which also recomputes contrast results).
+    function applyVariableValue(v, value) {
+        const currentId = document.getElementById('theme-selector').value;
+        if (!themes[currentId]) return;
+        themes[currentId][v] = value;
+        const textInput = document.getElementById(v);
+        if (textInput) textInput.value = value;
+        const colorInput = document.getElementById(v + '-color');
+        if (colorInput) colorInput.value = colorToHex(value);
+        updateStyleTag();
+    }
+
+    let pendingFixVar = null; // set while the suggest-a-fix modal is open; the variable it would apply to
+
+    function openFixConfirmModal(v) {
+        const fixLink = document.getElementById(v + '-fix');
+        const suggestion = fixLink && fixLink.dataset.suggestion;
+        if (!suggestion) return;
+        const currentId = document.getElementById('theme-selector').value;
+        const current = themes[currentId] && themes[currentId][v];
+
+        pendingFixVar = v;
+        document.getElementById('fix-confirm-body').innerHTML = `
+            <p style="margin-top: 0;">Replace <code style="background: var(--input-bg); border: 1px solid var(--border-color); padding: 2px 4px; border-radius: 3px;">${v}</code>:</p>
+            <div style="display: flex; align-items: center; justify-content: center; gap: 14px; margin: 12px 0;">
+                <div style="text-align: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 4px; border: 1px solid var(--border-color); background: ${current};"></div>
+                    <div style="font-family: monospace; font-size: 11px; margin-top: 4px;">${current}</div>
+                </div>
+                <div style="font-size: 18px; color: var(--text-sub);">→</div>
+                <div style="text-align: center;">
+                    <div style="width: 40px; height: 40px; border-radius: 4px; border: 1px solid var(--border-color); background: ${suggestion};"></div>
+                    <div style="font-family: monospace; font-size: 11px; margin-top: 4px;">${suggestion}</div>
+                </div>
+            </div>
+            <p style="margin-bottom: 0; color: var(--text-sub);">This clears its known contrast failures against the pair(s) it was failing.</p>
+        `;
+        document.getElementById('fix-confirm-modal').style.display = 'flex';
+    }
+
+    function closeFixConfirmModal() {
+        document.getElementById('fix-confirm-modal').style.display = 'none';
+        pendingFixVar = null;
+    }
+
+    function confirmApplyFix() {
+        if (!pendingFixVar) return;
+        const fixLink = document.getElementById(pendingFixVar + '-fix');
+        const suggestion = fixLink && fixLink.dataset.suggestion;
+        if (suggestion) applyVariableValue(pendingFixVar, suggestion);
+        closeFixConfirmModal();
+    }
+
+    // Recomputes the per-row badges + summary count for the currently active theme.
+    // Called after any edit to that theme's colors and after switching themes.
+    function updateContrastResults() {
+        const currentId = document.getElementById('theme-selector').value;
+        const vars = themes[currentId];
+        if (!vars) return;
+
+        const results = runContrastChecks(vars);
+        const rank = { fail: 0, unevaluated: 1, 'pass-large': 2, 'pass-aa': 3 };
+        const icon = { fail: '✗', unevaluated: '—', 'pass-large': '⚠', 'pass-aa': '✓' };
+        const label = {
+            fail: 'Fail',
+            unevaluated: 'Unevaluated (unsupported color format or partial transparency)',
+            'pass-large': 'Pass — large text / UI components only, not normal text',
+            'pass-aa': 'Pass AA'
+        };
+
+        // A variable can be the foreground of more than one pair (e.g. base + hover); show its worst result.
+        const byVar = {};
+        results.forEach(r => { (byVar[r.fgVar] = byVar[r.fgVar] || []).push(r); });
+
+        cssVariables.forEach(v => {
+            const badge = document.getElementById(v + '-badge');
+            const fixLink = document.getElementById(v + '-fix');
+            const checks = byVar[v];
+
+            if (!checks || checks.length === 0) {
+                if (badge) { badge.textContent = ''; badge.title = ''; badge.className = 'contrast-badge'; }
+                if (fixLink) fixLink.style.display = 'none';
+                return;
+            }
+
+            const worst = checks.reduce((a, b) => rank[b.status] < rank[a.status] ? b : a);
+            const failedChecks = checks.filter(c => c.status === 'fail');
+            const realFails = failedChecks.filter(c => !c.accepted);
+            // Only downgrade the badge's visual urgency to "accepted" when every failing pair for this
+            // row is accepted — if even one real fail remains, it stays fully flagged.
+            const isAcceptedOnly = worst.status === 'fail' && failedChecks.length > 0 && realFails.length === 0;
+
+            if (badge) {
+                badge.textContent = icon[worst.status];
+                badge.className = 'contrast-badge ' + (isAcceptedOnly ? 'contrast-accepted' : 'contrast-' + worst.status);
+                badge.title = checks.map(c => {
+                    const ratioText = c.ratio ? c.ratio.toFixed(2) + ':1 — ' : '';
+                    const acceptedNote = c.status === 'fail' && c.accepted ? ' — known, accepted by design (see README.md)' : '';
+                    return `${c.fgVar} on ${c.bgVar}: ${ratioText}${label[c.status]}${acceptedNote}`;
+                }).join('\n');
+            }
+
+            if (fixLink) {
+                const suggestion = realFails.length > 0 ? suggestFix(v) : null;
+                if (suggestion) {
+                    fixLink.style.display = 'inline-block';
+                    fixLink.title = `Suggest fixing to ${suggestion}`;
+                    fixLink.dataset.suggestion = suggestion;
+                } else {
+                    fixLink.style.display = 'none';
+                    delete fixLink.dataset.suggestion;
+                }
+            }
+        });
+
+        // Headline count is real (non-accepted) fails only — accepted ones are still visible per-row
+        // via the muted badge above, just not counted toward "needs attention."
+        const realFailCount = results.filter(r => r.status === 'fail' && !r.accepted).length;
+        const acceptedFailCount = results.filter(r => r.status === 'fail' && r.accepted).length;
+        const summary = document.getElementById('contrast-summary');
+        if (summary) {
+            summary.textContent = realFailCount > 0 ? `⚠ ${realFailCount} contrast warning${realFailCount === 1 ? '' : 's'}` : '';
+            const acceptedNote = acceptedFailCount > 0 ? ` (+${acceptedFailCount} known/accepted, not counted here — see README.md)` : '';
+            summary.title = realFailCount > 0
+                ? `One or more foreground/background pairs fall below WCAG AA.${acceptedNote} This checks the defined semantic pairs only — it is not a guarantee of full accessibility.`
+                : (acceptedFailCount > 0 ? `No unaddressed contrast failures.${acceptedNote}` : '');
+        }
+    }
+
+    // Fetches a style.css-shaped file and returns it already run through parseStyleCSS().
+    async function fetchThemeSet(url) {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Could not fetch ${url}`);
+        return parseStyleCSS(await res.text());
+    }
+
+    let currentThemeSet = 'compliant'; // 'compliant' | 'demo' | 'imported' — drives the label in the Theme Set row
+
+    function updateThemeSetLabel() {
+        const label = document.getElementById('theme-set-label');
+        if (!label) return;
+        label.textContent = {
+            compliant: 'Compliant (shipped) — style.css',
+            demo: '⚠ Demo — style-demo.css, kept intentionally imperfect',
+            imported: 'Imported (custom file)'
+        }[currentThemeSet] || '';
+    }
+
     async function init() {
         document.getElementById('app-version').textContent = `v${APP_VERSION}`;
         createPickers();
-        
+
         try {
-            const res = await fetch('style.css');
-            if (!res.ok) throw new Error("Could not fetch style.css");
-            const cssText = await res.text();
-            const parsed = parseStyleCSS(cssText);
+            const parsed = await fetchThemeSet('style.css');
             themes = parsed.themes;
             baseCSS = parsed.baseCSS;
         } catch (e) {
@@ -230,11 +622,44 @@
             loadThemesFromDOMFallback();
         }
 
+        updateThemeSetLabel();
         updateThemeDropdown();
         updateStyleTag();
         changeTheme("");
         setupFileInput();
         setupPreviewHighlighter();
+    }
+
+    // Swaps in the frozen "has real warnings" snapshot — same pipeline as init(), just a fixed URL
+    // instead of the default style.css, so users can see the contrast checker flag real problems.
+    async function loadDemoThemes() {
+        try {
+            const parsed = await fetchThemeSet('style-demo.css');
+            themes = parsed.themes;
+            baseCSS = parsed.baseCSS;
+            currentThemeSet = 'demo';
+            updateThemeSetLabel();
+            updateThemeDropdown();
+            updateStyleTag();
+            changeTheme("");
+        } catch (e) {
+            alert("Could not load style-demo.css. This needs the app served over http(s):// — it won't work when ThemeDesigner.html is opened directly as a local file. See README.md for how to serve it locally.");
+        }
+    }
+
+    async function loadCompliantThemes() {
+        try {
+            const parsed = await fetchThemeSet('style.css');
+            themes = parsed.themes;
+            baseCSS = parsed.baseCSS;
+            currentThemeSet = 'compliant';
+            updateThemeSetLabel();
+            updateThemeDropdown();
+            updateStyleTag();
+            changeTheme("");
+        } catch (e) {
+            alert("Could not reload style.css.");
+        }
     }
 
     function createPickers() {
@@ -322,6 +747,20 @@
                 controls.appendChild(wrapper);
             }
             
+            const badge = document.createElement('span');
+            badge.className = 'contrast-badge';
+            badge.id = v + '-badge';
+            controls.appendChild(badge);
+
+            const fixLink = document.createElement('span');
+            fixLink.className = 'contrast-fix-link';
+            fixLink.id = v + '-fix';
+            fixLink.textContent = '🔧';
+            fixLink.title = 'Suggest a fix';
+            fixLink.style.display = 'none';
+            fixLink.addEventListener('click', () => openFixConfirmModal(v));
+            controls.appendChild(fixLink);
+
             row.appendChild(label);
             row.appendChild(controls);
             container.appendChild(row);
@@ -365,6 +804,7 @@
             document.body.removeAttribute('data-theme');
         }
         updatePickers(id);
+        updateContrastResults();
     }
 
     function updateThemeDropdown() {
@@ -374,7 +814,9 @@
         for (let id in themes) {
             let opt = document.createElement('option');
             opt.value = id;
-            opt.text = id === "" ? "Default Light (Base)" : id;
+            let label = id === "" ? "Default Light (Base)" : id;
+            const realFailCount = runContrastChecks(themes[id]).filter(r => r.status === 'fail' && !r.accepted).length;
+            opt.text = realFailCount > 0 ? `${label} (${realFailCount} ⚠)` : label;
             select.appendChild(opt);
         }
         if (themes[current]) select.value = current;
@@ -424,6 +866,7 @@
             document.head.appendChild(styleTag);
         }
         styleTag.innerHTML = out;
+        updateContrastResults();
     }
 
     // --- FILE I/O LOGIC ---
@@ -516,6 +959,8 @@
                     const parsed = parseStyleCSS(content);
                     themes = parsed.themes;
                     baseCSS = parsed.baseCSS;
+                    currentThemeSet = 'imported';
+                    updateThemeSetLabel();
                     updateThemeDropdown();
                     updateStyleTag();
                     changeTheme("");
@@ -540,7 +985,7 @@
 
     // Fallback if fetch fails (e.g. executing index.html locally in Chrome without a server)
     function loadThemesFromDOMFallback() {
-        const knownThemes = ["", "Classic Dark", "Ocean", "Hacker", "Solarized Dark", "Gruvbox Light", "Warm Sepia", "Solarized Light"];
+        const knownThemes = ["", "Classic Dark", "Ocean", "Hacker", "Gruvbox Light", "Warm Sepia", "Hot Pink"];
         let hidden = document.createElement('div');
         hidden.style.display = 'none';
         document.body.appendChild(hidden);
@@ -583,9 +1028,9 @@
         
         // Map selectors to the variables that control their colors
         const elementMap = [
-            { selector: '.btn-primary, .btn-save', vars: ['--btn-primary', '--btn-primary-hover'] },
+            { selector: '.btn-primary, .btn-save', vars: ['--btn-primary', '--btn-primary-hover', '--btn-primary-text'] },
             { selector: '.btn-secondary, .btn-cancel', vars: ['--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text'] },
-            { selector: '.btn-success', vars: ['--btn-success', '--btn-success-hover'] },
+            { selector: '.btn-success', vars: ['--btn-success', '--btn-success-hover', '--btn-success-text'] },
             { selector: '.action-btn', vars: ['--row-bg', '--row-hover', '--border-color', '--text-sub'] },
             { selector: '.tab-btn.active', vars: ['--tab-active-bg', '--tab-active-text', '--border-color'] },
             { selector: '.tab-btn', vars: ['--tab-bg', '--tab-text', '--border-color'] },
