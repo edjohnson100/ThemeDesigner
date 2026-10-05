@@ -1,6 +1,6 @@
 # 🎨 Theme Designer Pro
 
-**Version:** 1.6.0
+**Version:** 1.6.1
 
 **Author:** Ed Johnson (Making With An EdJ)
 
@@ -9,7 +9,13 @@
 **[👉 CLICK HERE TO USE THE LIVE THEME DESIGNER](https://edjohnson100.github.io/ThemeDesigner/)**
 
 ---
-## ✨ What's New in v1.6.0
+## ✨ What's New in v1.6.1
+
+* **Themes now use `:root[data-theme="Name"]`.** The Designer sets `data-theme` on the page's `<html>` element and exports theme blocks in that form (higher specificity than a bare `[data-theme]`, so a theme wins regardless of source order). Importing still accepts a bare `:root`, `[data-theme="…"]` and `:root[data-theme="…"]`.
+* **Font stacks standardized** across the Designer and the add-ins: Sans-Serif is `-apple-system, "Segoe UI", Helvetica, Arial, sans-serif`. A theme whose font isn't one of the three options now shows a "Custom (…)" entry instead of a blank dropdown.
+* **New: [Theme_Designer_Pro_Bundled_Themes.css](Theme_Designer_Pro_Bundled_Themes.css)**: the seven bundled themes without font lines, to paste into an add-in beside the base stylesheet.
+
+## What's New in v1.6.0
 
 * **34 new variables (74 total) for the elements the base set didn't cover:** collapsible `<details>` sections and field labels (`--section-*`, `--label-text`), field hints, input focus border, disabled controls, switch knob, a danger button, a warning status box, links, tables, code, badges/chips, tooltips, scrollbars, progress bars, and text selection. They're grouped in the Variables panel (collapsible headers) instead of one long list. Full list, what each styles, and its fallback: **[Theme_Designer_Pro_Integration_Guide.md](Theme_Designer_Pro_Integration_Guide.md)**, section 2a.
 * **Old themes keep working.** Every new variable falls back to an existing one (e.g. `--section-bg` → `--row-bg`), so a `.theme.json` or `style.css` from before v1.6.0 imports and renders unchanged. A variable a theme doesn't set shows in the editor as a muted, italic **← source** row; editing it creates an explicit override, and **↺** removes the override again. Exports only include variables a theme actually sets — click **⤓ Make all explicit** in the Variables header to copy every derived value into the theme first, so its `.theme.json` / `style.css` block lists all 74.

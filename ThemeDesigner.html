@@ -298,7 +298,7 @@
 <input type="file" id="file-input" style="display: none;" accept=".css,.json">
 
 <script>
-    const APP_VERSION = '1.6.0';
+    const APP_VERSION = '1.6.1';
 
     // The variable schema, grouped for the picker UI. `cssVariables` (flat, in this order) is derived
     // from it, so export order and every loop over "all variables" stays consistent with the groups.
@@ -832,9 +832,9 @@
                 input.style.width = '145px';
                 if (v === '--font-family') {
                     input.innerHTML = `
-                        <option value="'Segoe UI', Tahoma, sans-serif">Sans-Serif</option>
-                        <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
-                        <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                        <option value="-apple-system, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif">Sans-Serif</option>
+                        <option value="Georgia, &quot;Times New Roman&quot;, Times, serif">Serif</option>
+                        <option value="Consolas, &quot;Courier New&quot;, Courier, monospace">Monospace</option>
                     `;
                 } else {
                     input.innerHTML = `
@@ -1012,6 +1012,18 @@
             const input = document.getElementById(v);
             const val = themes[id][v];
             if (input && val) {
+                if (input.tagName === 'SELECT') {
+                    // A stored value that isn't one of the dropdown's options (an older font stack, an unusual
+                    // size) gets a temporary "Custom" entry instead of silently showing a blank dropdown.
+                    Array.from(input.options).filter(o => o.dataset.custom).forEach(o => o.remove());
+                    if (!Array.from(input.options).some(o => o.value === val)) {
+                        const custom = document.createElement('option');
+                        custom.value = val;
+                        custom.textContent = `Custom (${val.length > 28 ? val.slice(0, 28) + '…' : val})`;
+                        custom.dataset.custom = '1';
+                        input.appendChild(custom);
+                    }
+                }
                 input.value = val;
                 if (v !== '--font-family' && v !== '--font-size-base') {
                     const colorInput = document.getElementById(v + '-color');
@@ -1025,9 +1037,9 @@
     function changeTheme(id) {
         document.getElementById('theme-selector').value = id;
         if (id) {
-            document.body.setAttribute('data-theme', id);
+            document.documentElement.setAttribute('data-theme', id);
         } else {
-            document.body.removeAttribute('data-theme');
+            document.documentElement.removeAttribute('data-theme');
         }
         updatePickers(id);
         updateContrastResults();
@@ -1079,7 +1091,7 @@
     function updateStyleTag() {
         let out = "";
         for (let id in themes) {
-            let sel = id === "" ? ":root" : `[data-theme="${id}"]`;
+            let sel = id === "" ? ":root" : `:root[data-theme="${id}"]`;
             out += `${sel} {\n`;
             for (let v of cssVariables) {
                 if (themes[id][v]) out += `    ${v}: ${themes[id][v]};\n`;
@@ -1108,7 +1120,8 @@
     // --- FILE I/O LOGIC ---
 
     function parseStyleCSS(cssText) {
-        const themeRegex = /(?:\/\*[\s\S]*?\*\/\s*)?(?:(:root)|\[data-theme=["']?([^"']+)["']?\])\s*\{([^}]+)\}/g;
+        // Accepts a bare :root block, [data-theme="X"], and :root[data-theme="X"] (the form this tool exports).
+        const themeRegex = /(?:\/\*[\s\S]*?\*\/\s*)?(?:(:root)(?=\s*\{)|(?::root)?\[data-theme=["']?([^"'\]]+)["']?\])\s*\{([^}]+)\}/g;
         let match;
         let parsedThemes = {};
         while ((match = themeRegex.exec(cssText)) !== null) {
@@ -1132,7 +1145,7 @@
         let i = 1;
         for (let id in themes) {
             let comment = id === "" ? "Default Light" : id;
-            let sel = id === "" ? ":root" : `[data-theme="${id}"]`;
+            let sel = id === "" ? ":root" : `:root[data-theme="${id}"]`;
             out += `/* ${i}. ${comment} */\n${sel} {\n`;
             for (let v of cssVariables) {
                 if (themes[id][v]) out += `    ${v}: ${themes[id][v]};\n`;
@@ -1232,22 +1245,21 @@
     // Fallback if fetch fails (e.g. executing index.html locally in Chrome without a server)
     function loadThemesFromDOMFallback() {
         const knownThemes = ["", "Classic Dark", "Ocean", "Hacker", "Gruvbox Light", "Warm Sepia", "Hot Pink"];
-        let hidden = document.createElement('div');
-        hidden.style.display = 'none';
-        document.body.appendChild(hidden);
+        const root = document.documentElement;
+        const previous = root.getAttribute('data-theme');
 
         knownThemes.forEach(id => {
-            if (id) hidden.setAttribute('data-theme', id);
-            else hidden.removeAttribute('data-theme');
+            if (id) root.setAttribute('data-theme', id);
+            else root.removeAttribute('data-theme');
             
-            let styles = getComputedStyle(hidden);
+            let styles = getComputedStyle(root);
             themes[id] = {};
             cssVariables.forEach(v => {
                 let val = styles.getPropertyValue(v).trim();
                 if (val) themes[id][v] = val;
             });
         });
-        document.body.removeChild(hidden);
+        if (previous) root.setAttribute('data-theme', previous); else root.removeAttribute('data-theme');
         baseCSS = "\n/* Note: base layout CSS was not loaded. Please Import style.css first if you want to export a full file. */\n";
     }
 

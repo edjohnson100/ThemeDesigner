@@ -19,7 +19,7 @@ These are the standard variables currently used by Theme Designer Pro. You don't
 ```css
 :root {
     /* Typography */
-    --font-family: 'Segoe UI', Tahoma, sans-serif;
+    --font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-size-base: 13px;
 
     /* Page/body */
@@ -123,7 +123,7 @@ Two fallbacks are literals instead of tokens (`--toggle-knob`, `--btn-danger*`) 
 
 **Export rule:** Theme Designer Pro only writes a variable into an exported `.theme.json` / `style.css` theme block if the theme actually sets it. An unset new token is left out and derives from its fallback on the consuming side; it appears in the editor as a muted "← source-token" row with a ↺ button that removes an override. The bundled `style.css` themes define the full 74 explicitly.
 
-**Drop-in starting point:** [Theme_Designer_Pro_Base_Stylesheet.css](Theme_Designer_Pro_Base_Stylesheet.css) is the `:root` token block plus every element rule above, with the fallbacks. Copy it into a new add-in's `style.css`. It's generated from `style.css`; regenerate it after changing that file's rules.
+**Drop-in starting point:** [Theme_Designer_Pro_Base_Stylesheet.css](Theme_Designer_Pro_Base_Stylesheet.css) is the `:root` token block plus every element rule above, with the fallbacks. Copy it into a new add-in's `style.css`. It's generated from `style.css`; regenerate it after changing that file's rules. [Theme_Designer_Pro_Bundled_Themes.css](Theme_Designer_Pro_Bundled_Themes.css) holds the seven bundled themes as `:root` / `:root[data-theme="Name"]` blocks with **no font lines** (fonts are a global add-in setting, applied on top of the selected theme); paste it next to the base stylesheet.
 
 **Matching JS array** (`THEME_VAR_NAMES`, for add-ins that build a `<style>` tag or export from a list of known names — keep it in the same order):
 
@@ -169,7 +169,7 @@ button.primary { background: var(--btn-primary); color: var(--btn-primary-text);
 ```
 
 ### Step 2 — Create your theme stylesheet
-Put a `:root { ... }` block with your default theme values at the top of a CSS file (this can be your existing stylesheet, or a dedicated `themes.css`). Add extra themes as sibling `[data-theme="Name"] { ... }` blocks, each overriding the same variable names:
+Put a `:root { ... }` block with your default theme values at the top of a CSS file (this can be your existing stylesheet, or a dedicated `themes.css`). Add extra themes as sibling `:root[data-theme="Name"] { ... }` blocks, each overriding the same variable names:
 
 ```css
 :root { /* Default Light */
@@ -178,24 +178,24 @@ Put a `:root { ... }` block with your default theme values at the top of a CSS f
     /* ...all other vars... */
 }
 
-[data-theme="Dark"] {
+:root[data-theme="Dark"] {
     --bg-body: #1e1e1e;
     --text-main: #eeeeee;
     /* ...all other vars... */
 }
 ```
 
-CSS custom properties do reliably inherit from `:root` under normal cascade/scope rules — you technically only need to declare a variable in `[data-theme="X"]` if its value actually differs from `:root`. Theme Designer Pro's own themes still write out the full variable set in every block anyway, on purpose: it keeps each exported theme self-contained and portable (drop one `[data-theme]` block into another project and it works, without needing that project's `:root` too), easier to inspect at a glance, and immune to a later edit of `:root` accidentally changing an "unset" value in every other theme. If you're hand-authoring themes and don't need that portability, relying on inheritance for unchanged values is perfectly safe CSS.
+CSS custom properties do reliably inherit from `:root` under normal cascade/scope rules — you technically only need to declare a variable in `:root[data-theme="X"]` if its value actually differs from `:root`. Theme Designer Pro's own themes still write out the full variable set in every block anyway, on purpose: it keeps each exported theme self-contained and portable (drop one `[data-theme]` block into another project and it works, without needing that project's `:root` too), easier to inspect at a glance, and immune to a later edit of `:root` accidentally changing an "unset" value in every other theme. If you're hand-authoring themes and don't need that portability, relying on inheritance for unchanged values is perfectly safe CSS.
 
 ### Step 3 — Apply the theme attribute
-Set `data-theme` on `<html>` or `<body>` (pick one and be consistent — it must match the selector in your CSS). This is the only runtime JS needed to activate a theme:
+Set `data-theme` on **`<html>`** (`document.documentElement`) — the `:root[data-theme="X"]` selectors only match the root element, and their higher specificity (0,2,0 vs `:root`'s 0,1,0) means a theme wins regardless of source order. A bare `[data-theme="X"]` block ties with `:root` and wins only if it comes later in the file, which is fragile; parsers should still accept both forms. This is the only runtime JS needed to activate a theme:
 
 ```js
 function applyTheme(themeName) {
     if (themeName && themeName !== 'Default Light') {
-        document.body.setAttribute('data-theme', themeName);
+        document.documentElement.setAttribute('data-theme', themeName);
     } else {
-        document.body.removeAttribute('data-theme');
+        document.documentElement.removeAttribute('data-theme');
     }
 }
 ```
@@ -229,7 +229,7 @@ Theme Designer Pro exports individual themes as JSON with this shape:
 }
 ```
 
-To let your app import a theme file at runtime without editing CSS at all, inject the vars into a `<style>` tag scoped to `[data-theme="..."]`, or apply them as inline custom properties on `document.body`:
+To let your app import a theme file at runtime without editing CSS at all, inject the vars into a `<style>` tag scoped to `:root[data-theme="..."]`, or apply them as inline custom properties on `document.documentElement`:
 
 ```js
 function loadThemeJSON(themeData) {
@@ -241,8 +241,8 @@ function loadThemeJSON(themeData) {
         document.head.appendChild(styleTag);
     }
     const decls = Object.entries(vars).map(([k, v]) => `${k}: ${v};`).join(' ');
-    styleTag.textContent = `[data-theme="${id}"] { ${decls} }`;
-    document.body.setAttribute('data-theme', id);
+    styleTag.textContent = `:root[data-theme="${id}"] { ${decls} }`;
+    document.documentElement.setAttribute('data-theme', id);
 }
 
 // fetch/upload the .theme.json, then:
@@ -262,7 +262,7 @@ You don't need to fork or modify Theme Designer Pro. The web tool at the live UR
 3. **Export a single theme** → `.theme.json` if your app has its own theme-loading UI (Step 5 above).
 4. **Export the full stylesheet** → `style.css` if you want a complete drop-in replacement CSS file containing all your themes plus generic layout rules — useful as a starting point for a new project, less useful if you already have your own component styles (you'll want to merge just the `:root` / `[data-theme]` blocks, not the whole file).
 
-If you only care about the variable *values*, ignore the rest of the exported CSS and copy just the `:root { ... }` and `[data-theme="..."] { ... }` blocks into your own stylesheet.
+If you only care about the variable *values*, ignore the rest of the exported CSS and copy just the `:root { ... }` and `:root[data-theme="..."] { ... }` blocks into your own stylesheet.
 
 ---
 
@@ -285,7 +285,7 @@ When asked to "add Theme Designer Pro theming" or "make this UI themeable using 
 1. **Audit** the target CSS/inline styles for hardcoded colors, fonts, and border values.
 2. **Introduce variables** using the `--{category}-{role}` naming convention above; reuse the standard names where they map cleanly, add new ones (following the same pattern) for anything project-specific (e.g. `--sidebar-bg`).
 3. **Write a `:root` block** with the project's current/default look as the values — this preserves the existing visual design as "Default Light" / "Default".
-4. **Add a `data-theme` toggle mechanism** (dropdown, settings menu, OS theme detection, etc.) that calls `setAttribute('data-theme', name)` on `<body>` or `<html>`.
+4. **Add a `data-theme` toggle mechanism** (dropdown, settings menu, OS theme detection, etc.) that calls `setAttribute('data-theme', name)` on `<html>`.
 5. **Do not** hardcode a second theme's colors unless asked — ask the user whether they want a starter Dark theme, or want to design themes themselves via the Theme Designer Pro tool afterward.
 6. **Persist** the selection using the storage mechanism idiomatic to that project (localStorage for web, config file for Electron/desktop, host-app storage for embedded palettes like Fusion).
 7. If the project already has a design system / CSS-in-JS / Tailwind setup, prefer mapping Theme Designer variables to that system's existing tokens rather than introducing a parallel one — flag the conflict to the user instead of silently choosing.

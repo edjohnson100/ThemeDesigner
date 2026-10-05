@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Theme Designer Pro — Base Stylesheet (v1.6.0)
+   Theme Designer Pro: Base Stylesheet (v1.6.1)
    Drop this into any HTML palette's style.css so a new add-in starts with full
    coverage of the Theme Designer Pro token set (74 variables).
 
@@ -8,16 +8,18 @@
        var(--new-token, var(--existing-token))
      so a theme file that predates it (no --section-bg, no --link, ...) still renders
      correctly: the new token derives from an existing one. The full fallback table is
-     in Theme_Designer_Pro_Integration_Guide.md, Section 2.
-   - [data-theme="Name"] blocks only need the variables that differ from :root; the
-     original 40 should always be defined, the 34 newer ones may be omitted.
+     in Theme_Designer_Pro_Integration_Guide.md, Section 2a.
+   - Other themes are :root[data-theme="Name"] blocks (set data-theme on <html>); they only
+     need the variables that differ from :root. :root[data-theme] has higher specificity
+     than :root, so it wins regardless of source order. The bundled themes are in
+     Theme_Designer_Pro_Bundled_Themes.css.
    - The body rule's 2px --btn-primary border is intentional. Keep it.
    - Keep THEME_VAR_NAMES (your JS) in sync with the :root block below.
    ========================================================================== */
 
-/* 1. Default Light — the :root token block */
+/* 1. Default Light: the :root token block */
 :root {
-    --font-family: 'Segoe UI', Tahoma, sans-serif;
+    --font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
     --font-size-base: 13px;
     --bg-body: #f5f5f5;
     --text-main: #333333;
