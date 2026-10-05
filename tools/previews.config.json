@@ -1,0 +1,83 @@
+{
+  "_comment": "One entry per add-in whose real palette UI can be previewed in Theme Designer Pro. Paths in 'source' are relative to this repo's root. Run: python tools/sync_previews.py   (or --check to see which previews are stale).",
+  "addins": [
+    {
+      "id": "FCEditor",
+      "name": "FCEditor",
+      "source": "../FCEditor",
+      "html": "resources/FCEditor_Index.html",
+      "css": "resources/style.css",
+      "manifest": "FCEditor.manifest"
+    },
+    {
+      "id": "LucysShapeForge",
+      "name": "Lucy's Shape Forge",
+      "source": "../LucysShapeForge",
+      "html": "palette/index.html",
+      "css": "palette/style.css",
+      "manifest": "LucysShapeForge.manifest",
+      "assets": [
+        {
+          "from": "resources/shape_thumbs/Cube_rnd.png",
+          "to": "assets/Cube_rnd.png"
+        }
+      ]
+    },
+    {
+      "id": "LiveUtilities",
+      "name": "LiveUtilities",
+      "source": "../LiveUtilities",
+      "html": "resources/liveutils_index.html",
+      "css": "resources/liveutils_style.css",
+      "manifest": "LiveUtilities.manifest"
+    },
+    {
+      "id": "FingerJointsLive",
+      "name": "Finger Joints Live",
+      "source": "../FingerJointsLive",
+      "html": "resources/fingerjointslive_index.html",
+      "css": "resources/style.css",
+      "manifest": "FingerJointsLive.manifest"
+    },
+    {
+      "id": "LucysSurfaceForge",
+      "name": "Lucy's Surface Forge",
+      "source": "../LucysSurfaceForge",
+      "html": "resources/LucysSurfaceForge_Index.html",
+      "css": "resources/style.css",
+      "manifest": "LucysSurfaceForge.manifest"
+    },
+    {
+      "id": "LiveConfig",
+      "name": "LiveConfig",
+      "source": "../LiveConfig",
+      "html": "resources/html/index.html",
+      "css": "resources/html/style.css",
+      "manifest": "LiveConfig.manifest"
+    },
+    {
+      "id": "LiveParameters",
+      "name": "LiveParameters",
+      "source": "../LiveParameters",
+      "html": "resources/live_index.html",
+      "css": "resources/style.css",
+      "manifest": "LiveParameters.manifest"
+    },
+    {
+      "id": "OrnamentBuddy",
+      "name": "OrnamentBuddy",
+      "source": "../OrnamentBuddy",
+      "html": "resources/html/index.html",
+      "css": "resources/html/style.css",
+      "manifest": "OrnamentBuddy.manifest"
+    },
+    {
+      "id": "ChangelogSidecar",
+      "name": "ChangelogSidecar",
+      "source": "../ChangelogSidecar",
+      "html": "resources/changelog_ui.html",
+      "css": "resources/changelog_ui.css",
+      "manifest": "ChangelogSidecar.manifest"
+    }
+  ]
+}

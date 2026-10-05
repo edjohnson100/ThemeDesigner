@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html data-theme="dark">
+<head>
+    <link rel="stylesheet" href="style.css">
+    <title>LiveConfig</title>
+</head>
+<body>
+    <div class="header">
+        <div class="title-group">
+            <h2>Live Configurator</h2>
+            <div id="versionTag" class="sub-header"></div>
+        </div>
+        <select id="themeSelector" onchange="changeTheme()" style="width: auto; height: 28px; padding: 2px 5px;">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="sepia">Sepia</option>
+        </select>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-configs')">Configs</button>
+        <button class="tab-btn" onclick="switchTab('tab-themes')">Themes</button>
+    </div>
+
+    <div id="tab-configs" class="tab-content active">
+        <div id="docName" class="sub-header" style="margin-bottom: 12px;">Scanning...</div>
+
+        <div id="sec-configs" class="section">
+            <div class="section-header" tabindex="0" role="button" aria-expanded="true" onclick="toggleSection('sec-configs')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-configs');}">
+                <div class="header-title">
+                    <span class="arrow">▼</span>
+                    <h3>Snapshots</h3>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <div id="configList" class="grid-list">
+                    <div class="empty-state">No configs saved.</div>
+                </div>
+                <div class="input-group">
+                    <input type="text" id="newConfigName" placeholder="New Config Name...">
+                    <button id="saveConfigBtn" class="secondary-btn">Save State</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-params" class="section">
+            <div class="section-header" tabindex="0" role="button" aria-expanded="true" onclick="toggleSection('sec-params')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-params');}">
+                <div class="header-title">
+                    <span class="arrow">▼</span>
+                    <h3>Live Parameters</h3>
+                </div>
+
+                <div class="header-controls" onclick="event.stopPropagation()">
+                    <label class="fav-toggle" title="Show Favorites Only">
+                        <input type="checkbox" id="favFilterCheck" checked>
+                        <span class="fav-label">★ Favs</span>
+                    </label>
+                    <button id="scanBtn" class="icon-btn" title="Rescan Model">↻</button>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <div id="paramList" class="param-container">
+                    <div class="empty-state">No User Parameters found.</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sec-features" class="section">
+            <div class="section-header" tabindex="0" role="button" aria-expanded="true" onclick="toggleSection('sec-features')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-features');}">
+                <div class="header-title">
+                    <span class="arrow">▼</span>
+                    <h3>Tracked Features (CFG_)</h3>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <div id="featureList" class="feature-container">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-themes" class="tab-content">
+        <div class="section" id="sec-theme-manager">
+            <div class="section-header" tabindex="0" role="button" aria-expanded="true" onclick="toggleSection('sec-theme-manager')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-theme-manager');}">
+                <div class="header-title">
+                    <span class="arrow">▼</span>
+                    <h3>Theme Manager</h3>
+                </div>
+            </div>
+            <div class="section-content data-container">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <label>Font Family</label>
+                        <select id="fontFamilySelector" onchange="updateActiveThemeProperty('--font-family', this.value)">
+                            <option value="'Segoe UI', Tahoma, sans-serif">Sans-serif</option>
+                            <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                            <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>Base Font Size</label>
+                        <select id="fontSizeSelector" onchange="updateActiveThemeProperty('--font-size-base', this.value)">
+                            <option value="11px">11px</option>
+                            <option value="12px">12px</option>
+                            <option value="13px">13px</option>
+                            <option value="14px">14px</option>
+                            <option value="15px">15px</option>
+                            <option value="16px">16px</option>
+                            <option value="17px">17px</option>
+                            <option value="18px">18px</option>
+                        </select>
+                    </div>
+                </div>
+                <p>Import custom themes via a JSON theme export or batch import custom style.css files.</p>
+                <div class="create-grid">
+                    <button class="btn-primary" onclick="requestImportTheme('css')">📥 Import style.css</button>
+                    <button class="btn-primary" onclick="requestExportTheme('css')">📤 Export style.css</button>
+                    <button class="btn-secondary" onclick="requestImportTheme('json')">📂 Import .json</button>
+                    <button class="btn-secondary" onclick="requestExportTheme('json')">💾 Export .json</button>
+                    <button id="themeRemoveBtn" class="btn-secondary full-width" onclick="removeSelectedTheme()" disabled title="Select a custom (imported) theme to enable">🗑️ Remove Selected Theme</button>
+                    <button class="btn-secondary full-width" onclick="resetThemeCache()">🗑️ Factory Reset Theme Cache</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="version-footer">Live Configurator<br><span id="footerVersion"></span></div>
+
+      <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

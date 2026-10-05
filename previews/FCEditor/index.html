@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>FCEditor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <div>
+        <h2>FCEditor</h2>
+        <div id="versionTag" class="sub-header"></div>
+      </div>
+      <select id="theme.name" style="width: auto; height: 28px; font-size: calc(var(--font-size-base) - 1px); padding: 2px 5px;">
+        <option value="System">System (Default)</option>
+        <option value="Light">Light</option>
+        <option value="Dark">Dark</option>
+        <option value="Midnight">Midnight</option>
+        <option value="Sandstone">Sandstone</option>
+      </select>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="main">Main</button>
+      <button class="tab-button" data-tab="pun">Pun/Color Mgr</button>
+      <button class="tab-button" data-tab="config">Config</button>
+      <button class="tab-button" data-tab="themes">Themes</button>
+    </div>
+
+    <div id="notification" class="notification hidden"></div>
+
+    <div id="tab-main" class="tab-panel active">
+      <div id="model-banner" class="banner hidden" role="status">
+        <div id="model-banner-text"></div>
+        <div class="actions secondary" id="model-banner-actions">
+          <button type="button" id="model-convert">Convert Model Parameters</button>
+        </div>
+      </div>
+
+      <details class="section" open>
+        <summary>Order &amp; Design</summary>
+        <div class="row2">
+          <label>Order #
+            <input type="text" id="main.orderNum" placeholder="12345" autocomplete="off">
+            <span class="field-error" data-error-for="orderNum"></span>
+          </label>
+          <label class="narrow">Qty
+            <input type="number" id="main.qty" min="1" step="1">
+            <span class="field-error" data-error-for="qty"></span>
+          </label>
+        </div>
+        <label>Name
+          <input type="text" id="main.name" placeholder="NAME HERE" autocomplete="off">
+          <span class="field-error" data-error-for="name"></span>
+        </label>
+
+        <label data-types="Keychain" id="lbl-keychain-style">Keychain style
+          <select id="main.keychainStyle"></select>
+          <span class="field-error" data-error-for="keychainStyle"></span>
+        </label>
+
+        <label data-types="FenceCaddy">Pun
+          <select id="main.punId"></select>
+          <span class="field-error" data-error-for="punId"></span>
+        </label>
+
+        <div id="custom-fields" class="hidden" data-types="FenceCaddy">
+          <label>Custom text (top / single line)
+            <input type="text" id="main.customTop" autocomplete="off">
+            <span class="field-error" data-error-for="customTop"></span>
+          </label>
+          <label id="lbl-custom-bottom">Custom bottom line
+            <input type="text" id="main.customBottom" autocomplete="off">
+            <span class="field-error" data-error-for="customBottom"></span>
+          </label>
+          <div class="row2">
+            <label>Font size (mm)
+              <input type="number" id="main.tweakFont" min="0.1" step="0.1">
+              <span class="field-error" data-error-for="tweakFont"></span>
+            </label>
+            <label>Row height (mm)
+              <input type="number" id="main.tweakRow" min="0.1" step="0.1">
+              <span class="field-error" data-error-for="tweakRow"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row2">
+          <label id="lbl-color" data-types="FenceCaddy PickleCam Keychain"><span id="color-label-text">Color</span>
+            <select id="main.color"></select>
+            <span class="field-error" id="err-color" data-error-for="color"></span>
+          </label>
+          <label class="checkbox-label wire-loop" data-types="FenceCaddy">
+            <input type="checkbox" id="main.wireLoop"> Wire loop
+          </label>
+        </div>
+      </details>
+
+      <div id="main-notification" class="notification hidden"></div>
+
+      <details class="section" id="export-options">
+        <summary>Export options</summary>
+        <div class="inline-checks">
+          <span class="field-hint">Formats:</span>
+          <label class="checkbox-label"><input type="checkbox" id="main.export3mf"> 3MF</label>
+          <label class="checkbox-label"><input type="checkbox" id="main.exportStep"> STEP</label>
+          <label class="checkbox-label"><input type="checkbox" id="main.exportStl"> STL</label>
+        </div>
+        <span class="field-error" data-error-for="exportFormats"></span>
+        <label class="checkbox-label" id="lbl-rotate" data-types="Keychain">
+          <input type="checkbox" id="main.rotateFace"> Rotate face down for 3D printing
+        </label>
+        <span class="field-hint" data-types="Keychain">Face down loads in print position but not as an assembly. Face up prints slightly better, but you rotate it in the slicer.</span>
+        <label class="checkbox-label">
+          <input type="checkbox" id="main.saveImage"> Save a render image (PNG)
+        </label>
+      </details>
+
+      <div class="sticky-actions">
+        <div class="actions">
+          <button type="button" data-action="update_model" data-tab="main">Update Model</button>
+          <button type="button" data-action="export" data-tab="main" id="export-button">Export</button>
+        </div>
+        <span class="field-hint" id="export-folder-hint"></span>
+      </div>
+    </div>
+
+    <div id="tab-pun" class="tab-panel">
+      <details class="section" open>
+        <summary>Pun Manager</summary>
+        <span class="field-hint">Add, edit or remove the puns offered on the Main tab. Saved on this computer (fceditor-puns.json).</span>
+        <label>Pun
+          <select id="punpick"></select>
+        </label>
+        <div class="actions secondary">
+          <button type="button" id="pun-new">New</button>
+          <button type="button" id="pun-delete" disabled>Delete&hellip;</button>
+        </div>
+
+        <label>Name (shown in the list)
+          <input type="text" id="pun.name" autocomplete="off">
+        </label>
+        <span class="field-error" data-error-for="name"></span>
+        <label>Lines
+          <select id="pun.lines">
+            <option value="1">1 line</option>
+            <option value="2">2 lines</option>
+          </select>
+        </label>
+        <label id="lbl-pun-text1">Top line
+          <input type="text" id="pun.text1" autocomplete="off">
+        </label>
+        <span class="field-error" data-error-for="text1"></span>
+        <label id="lbl-pun-text2">Bottom line
+          <input type="text" id="pun.text2" autocomplete="off">
+        </label>
+        <span class="field-error" data-error-for="text2"></span>
+        <div class="row2">
+          <label>Font size (mm)
+            <input type="number" id="pun.fontSize" min="0.1" step="0.1">
+            <span class="field-error" data-error-for="fontSize"></span>
+          </label>
+          <label id="lbl-pun-rowSingle">Row height (mm)
+            <input type="number" id="pun.rowSingle" min="0.1" step="0.1">
+            <span class="field-error" data-error-for="rowSingle"></span>
+          </label>
+        </div>
+        <div class="row2">
+          <label id="lbl-pun-rowTop">Top row (mm)
+            <input type="number" id="pun.rowTop" min="0.1" step="0.1">
+            <span class="field-error" data-error-for="rowTop"></span>
+          </label>
+          <label id="lbl-pun-rowBottom">Bottom row (mm)
+            <input type="number" id="pun.rowBottom" min="0.1" step="0.1">
+            <span class="field-error" data-error-for="rowBottom"></span>
+          </label>
+        </div>
+        <span class="field-hint">Text is stored in capitals, as the model expects.</span>
+
+        <div class="actions">
+          <button type="button" id="pun-save">Save Pun</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" id="pun-reset">Reset to Built-in Puns</button>
+        </div>
+      </details>
+
+      <div id="pun-notification" class="notification hidden"></div>
+
+      <!-- One collapsible block per design type, built by script.js (buildColorMgr). -->
+      <div id="color-blocks"></div>
+    </div>
+
+    <div id="tab-config" class="tab-panel">
+      <details class="section" open>
+        <summary>Export Folders</summary>
+        <span class="field-hint">Saved on this computer only (fceditor-config.json). Exports go to the folder for the OS you are running; leave it blank to use the Desktop.</span>
+        <label>macOS folder
+          <input type="text" id="config.stlFolderMacOS" autocomplete="off">
+        </label>
+        <div class="actions secondary">
+          <button type="button" data-browse="stlFolderMacOS">Browse&hellip;</button>
+        </div>
+        <label>Windows folder
+          <input type="text" id="config.stlFolderWindows" autocomplete="off">
+        </label>
+        <div class="actions secondary">
+          <button type="button" data-browse="stlFolderWindows">Browse&hellip;</button>
+        </div>
+      </details>
+
+      <details class="section">
+        <summary>Keychain Defaults</summary>
+        <label>Text depth (mm)
+          <input type="number" id="config.textDepth" min="0.1" max="5" step="0.1">
+        </label>
+        <span class="field-error" data-error-for="textDepth"></span>
+        <span class="field-hint">Written to the model's text_depth parameter each time you click Update Model.</span>
+        <label>Keychain margin after the name (mm)
+          <input type="number" id="config.keychainMargin" min="0" max="50" step="0.5">
+        </label>
+        <span class="field-error" data-error-for="keychainMargin"></span>
+        <span class="field-hint">Keychains are sized to the actual name: Update Model measures the letters and leaves this much keychain after the last one.</span>
+      </details>
+
+      <details class="section" open>
+        <summary>Palette Position</summary>
+        <div class="actions">
+          <button type="button" id="palette-reset-position">Reset Palette Position</button>
+        </div>
+        <span class="field-hint">Where Reset Palette Position floats the palette, in pixels from the top-left of your primary monitor. Click Save Settings after editing, then Reset.</span>
+        <label>Left
+          <input type="number" id="config.paletteResetLeft" min="0" max="10000" step="1">
+        </label>
+        <span class="field-error" data-error-for="paletteResetLeft"></span>
+        <label>Top
+          <input type="number" id="config.paletteResetTop" min="0" max="10000" step="1">
+        </label>
+        <span class="field-error" data-error-for="paletteResetTop"></span>
+        <label>Width
+          <input type="number" id="config.paletteResetWidth" min="200" max="3000" step="1">
+        </label>
+        <span class="field-error" data-error-for="paletteResetWidth"></span>
+        <label>Height
+          <input type="number" id="config.paletteResetHeight" min="200" max="3000" step="1">
+        </label>
+        <span class="field-error" data-error-for="paletteResetHeight"></span>
+      </details>
+
+      <div id="config-notification" class="notification hidden"></div>
+
+      <div class="actions">
+        <button type="button" id="config-save">Save Settings</button>
+      </div>
+      <div class="actions secondary">
+        <button type="button" id="config-reset">Reset to Defaults</button>
+      </div>
+    </div>
+
+    <div id="tab-themes" class="tab-panel">
+      <details class="section" open>
+        <summary>Themes</summary>
+        <span class="field-hint">"System" (in the header above) follows your OS's light/dark setting automatically.</span>
+
+        <label>Font family
+          <select id="theme.fontFamily">
+            <option value="-apple-system, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif">Sans-serif</option>
+            <option value="Georgia, &quot;Times New Roman&quot;, Times, serif">Serif</option>
+            <option value="Consolas, &quot;Courier New&quot;, Courier, monospace">Monospace</option>
+          </select>
+        </label>
+        <label>Base font size (px)
+          <input type="number" id="theme.fontSize" min="10" max="20" step="1">
+        </label>
+        <span class="field-hint">Font settings apply on top of whichever theme is selected above, and are included when you export a theme below.</span>
+
+        <div class="actions secondary">
+          <button type="button" id="theme-import-json">Import theme.json&hellip;</button>
+          <button type="button" id="theme-export-json">Export theme.json&hellip;</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" id="theme-import-css">Import style.css&hellip;</button>
+          <button type="button" id="theme-export-css">Export style.css&hellip;</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" id="theme-remove" disabled>Remove Selected Theme</button>
+          <button type="button" id="theme-factory-reset">Factory Reset Themes</button>
+        </div>
+        <span class="field-hint" id="theme-import-hint"></span>
+      </details>
+    </div>
+
+    <div class="field-hint version-footer">FCEditor<br><span id="footerVersion">vX.Y.Z</span>, September 2026</div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn-cancel" id="modal-btn-cancel">Cancel</button>
+        <button type="button" class="modal-btn-confirm" id="modal-btn-confirm">OK</button>
+      </div>
+    </div>
+  </div>
+
+    <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

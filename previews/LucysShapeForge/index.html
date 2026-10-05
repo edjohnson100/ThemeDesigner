@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucy's Shape Forge</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="wrap">
+        <div class="header">
+            <div>
+                <h2>Lucy's Shape Forge 🔥</h2>
+                <div id="versionTag" class="sub-header"></div>
+            </div>
+            <select id="themeSelect" style="width: auto; height: 28px; font-size: 11px; padding: 2px 5px;">
+                <option value="" selected>Forge Dark (Default)</option>
+                <option value="Classic Dark">Classic Dark</option>
+                <option value="Classic Light">Classic Light</option>
+                <option value="Ocean">Ocean</option>
+                <option value="Hacker">Hacker</option>
+                <option value="Solarized Dark">Solarized Dark</option>
+                <option value="Gruvbox Light">Gruvbox Light</option>
+                <option value="Warm Sepia">Warm Sepia</option>
+                <option value="Solarized Light">Solarized Light</option>
+                <option value="Hot Pink">Hot Pink</option>
+            </select>
+        </div>
+
+        <div class="tab-bar">
+            <button type="button" class="tab-btn active" data-tab="shapes" onclick="switchTab('shapes')">Shapes</button>
+            <button type="button" class="tab-btn" data-tab="theme" onclick="switchTab('theme')">Themes</button>
+        </div>
+
+        <div id="tab-shapes" class="tab-panel active">
+            <div class="field-row">
+                <div class="field">
+                    <label for="category">Category</label>
+                    <select id="category"></select>
+                </div>
+                <div class="field">
+                    <label for="shape">Shape</label>
+                    <select id="shape"></select>
+                </div>
+            </div>
+
+            <div class="shape-info-row">
+                <img id="shapeThumb" class="shape-thumb" alt="" style="display:none;">
+                <div id="shapeInfo" class="shape-info"></div>
+            </div>
+
+            <div class="field-row">
+                <div class="field">
+                    <label for="edge">Edge Length (mm)</label>
+                    <input id="edge" type="number" value="44" step="1">
+                </div>
+                <div class="field">
+                    <label for="tol" title="Internal geometry-matching tolerance (e.g. detecting shared edges during face recovery). Not a physical fit gap — leave at default unless you see modeling errors.">Geometry Tolerance (mm)</label>
+                    <input id="tol" type="number" value="0.1" step="0.01" title="Internal geometry-matching tolerance — not a physical print gap.">
+                </div>
+            </div>
+
+            <div class="field-row">
+                <div class="field" id="outputField">
+                    <label for="outputMode">Output</label>
+                    <select id="outputMode">
+                        <option value="sketch" selected>Sketch Only</option>
+                        <option value="surface">Surface Patches</option>
+                        <option value="bodies">Bodies (Pyramids)</option>
+                        <option value="net">Flat Panels (Tapered)</option>
+                    </select>
+
+                    <button id="randomizeAppearancesBtn" type="button" class="btn-secondary" style="display:none;">Randomize Appearances</button>
+
+                    <div id="seamFilletPreview" class="info-box" style="display:none;"></div>
+                    <div id="cutOffsetPreview" class="info-box" style="display:none;"></div>
+                    <div id="shellThicknessPreview" class="info-box" style="display:none;"></div>
+                    <div id="panelClearancePreview" class="info-box" style="display:none;"></div>
+                </div>
+                <div class="field" id="bodiesOptionsField" style="display:none;">
+                    <label for="exteriorStyle" id="exteriorStyleLabel">Exterior</label>
+                    <select id="exteriorStyle">
+                        <option value="flat" selected>Flat</option>
+                        <option value="rounded">Rounded</option>
+                    </select>
+
+                    <label id="seamFilletRow" class="checkbox-row" style="display:none;">
+                        <input id="seamFillet" type="checkbox">
+                        Seam Fillet
+                    </label>
+
+                    <label for="filletStyle" id="filletStyleLabel" style="display:none;">Fillet Style</label>
+                    <select id="filletStyle" style="display:none;">
+                        <option value="constant" selected>Constant</option>
+                        <option value="asymmetric">Asymmetric</option>
+                    </select>
+
+                    <label for="seamTightness" id="seamTightnessLabel" style="display:none;">Seam Tightness</label>
+                    <input id="seamTightness" type="number" value="1.0" step="0.05" style="display:none;">
+
+                    <label id="splitBodyRow" class="checkbox-row">
+                        <input id="splitBody" type="checkbox" checked>
+                        Split Body
+                    </label>
+
+                    <label for="cutOffset" id="cutOffsetLabel" style="display:none;">Cut Offset (mm)</label>
+                    <input id="cutOffset" type="number" value="10" step="1" style="display:none;">
+
+                    <label id="shellBodyRow" class="checkbox-row" style="display:none;">
+                        <input id="shellBody" type="checkbox">
+                        Shell Body
+                    </label>
+
+                    <label for="wallThickness" id="wallThicknessLabel" style="display:none;">Wall Thickness (mm)</label>
+                    <input id="wallThickness" type="number" value="2" step="0.5" style="display:none;">
+
+                    <label for="shellFaces" id="shellFacesLabel" style="display:none;">Shell Faces</label>
+                    <select id="shellFaces" style="display:none;">
+                        <option value="inside" selected>Inside</option>
+                        <option value="outside">Outside</option>
+                        <option value="both">Both</option>
+                    </select>
+
+                    <label for="shellStyle" id="shellStyleLabel" style="display:none;">Shell Style</label>
+                    <select id="shellStyle" style="display:none;">
+                        <option value="sharp" selected>Sharp</option>
+                        <option value="rounded">Rounded</option>
+                    </select>
+
+                    <label for="panelClearance" id="panelClearanceLabel" style="display:none;">Panel Clearance (mm)</label>
+                    <input id="panelClearance" type="number" value="0.2" step="0.1" min="0" style="display:none;">
+
+                    <label for="clearance" id="clearanceLabel" style="display:none;" title="Total gap left between two assembled 3D-printed panels at their shared edge. Size it off your printer's nozzle diameter / line width (typically 0.05–0.3mm). Each panel is inset by half this value.">3D Print Clearance (mm)</label>
+                    <input id="clearance" type="number" value="0" step="0.025" style="display:none;" title="Total gap left between two assembled 3D-printed panels at their shared edge. Size it off your printer's nozzle diameter / line width (typically 0.05–0.3mm). Each panel is inset by half this value.">
+                </div>
+            </div>
+
+            <div class="field-row" id="timelineGroupRow" style="display:none;">
+                <div class="field">
+                    <label class="checkbox-row">
+                        <input id="groupTimeline" type="checkbox" checked>
+                        Group in Timeline
+                    </label>
+                </div>
+            </div>
+
+            <div class="create-row">
+                <button id="createBtn" type="button">Create Shape</button>
+                <div class="create-row-options">
+                    <label class="checkbox-row">
+                        <input id="autoActivateComponent" type="checkbox">
+                        Auto-Activate Component
+                    </label>
+                    <label class="checkbox-row">
+                        <input id="autoHideInactive" type="checkbox">
+                        Auto-Hide Inactive Components
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-theme" class="tab-panel">
+            <div class="section" id="sec-theme-manager">
+                <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-theme-manager')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-theme-manager')}">
+                    <h3>Theme Manager</h3>
+                    <span class="arrow">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="theme-row">
+                        <div class="theme-field">
+                            <label for="fontFamilySelector">Font Family</label>
+                            <select id="fontFamilySelector" onchange="updateActiveThemeProperty('--font-family', this.value)">
+                                <option value="Arial, Helvetica, sans-serif">Sans-serif</option>
+                                <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                                <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                            </select>
+                        </div>
+                        <div class="theme-field">
+                            <label for="fontSizeSelector">Base Font Size</label>
+                            <select id="fontSizeSelector" onchange="updateActiveThemeProperty('--font-size-base', this.value)">
+                                <option value="11px">11px</option><option value="12px">12px</option><option value="13px">13px</option>
+                                <option value="14px">14px</option><option value="15px">15px</option><option value="16px">16px</option>
+                                <option value="17px">17px</option><option value="18px">18px</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="theme-manager-grid">
+                        <button type="button" class="btn-secondary" onclick="requestImport('css')">📥 Import style.css</button>
+                        <button type="button" class="btn-secondary" onclick="requestExport('css')">📤 Export style.css</button>
+                        <button type="button" class="btn-secondary" onclick="requestImport('json')">📂 Import .json</button>
+                        <button type="button" class="btn-secondary" onclick="requestExport('json')">💾 Export .json</button>
+                        <button type="button" id="themeRemoveBtn" class="btn-secondary theme-manager-full" onclick="removeSelectedTheme()" disabled title="Select a custom (imported) theme to enable">🗑️ Remove Selected Theme</button>
+                        <button type="button" class="btn-secondary theme-manager-full" onclick="resetThemeCache()">🗑️ Factory Reset Theme Cache</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="version-footer">Lucy's Shape Forge<br><span id="versionFooterTag">v1.8.0, September 2026</span></div>
+    </div>
+
+      <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

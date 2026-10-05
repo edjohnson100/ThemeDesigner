@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <div>
+        <h2>LucysSurfaceForge</h2>
+        <div id="versionTag" class="sub-header"></div>
+      </div>
+      <select id="theme.name" style="width: auto; height: 28px; font-size: calc(var(--font-size-base) - 1px); padding: 2px 5px;">
+        <option value="System">System (Default)</option>
+        <option value="Light">Light</option>
+        <option value="Dark">Dark</option>
+        <option value="Midnight">Midnight</option>
+        <option value="Sandstone">Sandstone</option>
+      </select>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-button active" data-tab="main">Main</button>
+      <button class="tab-button" data-tab="themes">Themes</button>
+    </div>
+
+    <div id="notification" class="notification hidden"></div>
+
+    <div id="tab-main" class="tab-panel active">
+      <details class="section" open>
+        <summary>Ball</summary>
+        <label>Ball diameter (mm) <input type="number" step="1" min="1" id="main.ballDiameter"></label>
+        <span class="field-error" data-error-for="ballDiameter"></span>
+        <span class="field-hint" id="main-area-preview"></span>
+      </details>
+
+      <details class="section" open>
+        <summary>Panel Style</summary>
+        <label>Style
+          <select id="main.panelStyle">
+            <option value="simple">Simple tetrahedral spherical panels</option>
+            <option value="trionda">Trionda-inspired curved panels</option>
+          </select>
+        </label>
+        <span class="field-error" data-error-for="panelStyle"></span>
+      </details>
+
+      <details class="section">
+        <summary>Trionda Seam Parameters</summary>
+        <span class="field-hint">Only used when Panel Style is Trionda-inspired. Seam bow and lobe amplitude are fractions of the ball's radius (typically well under 0.3).</span>
+        <label>Seam bow <input type="number" step="0.01" id="main.seamBow"></label>
+        <span class="field-error" data-error-for="seamBow"></span>
+        <label>Lobe amplitude <input type="number" step="0.01" id="main.lobeAmplitude"></label>
+        <span class="field-error" data-error-for="lobeAmplitude"></span>
+        <span class="field-hint">Junction/seam width and depth (grooves) unlock in a later milestone.</span>
+        <label>Junction width (mm) <input type="number" step="0.1" min="0" id="main.junctionWidth" disabled></label>
+        <label>Seam width (mm) <input type="number" step="0.1" min="0" id="main.seamWidth" disabled></label>
+        <label>Seam depth (mm) <input type="number" step="0.1" min="0" id="main.seamDepth" disabled></label>
+      </details>
+
+      <details class="section">
+        <summary>Panel Thickness (coming soon)</summary>
+        <span class="field-hint">Unlocks once thickened panel bodies land in a later milestone.</span>
+        <label>Panel thickness (mm) <input type="number" step="0.1" min="0" id="main.panelThickness" disabled></label>
+      </details>
+
+      <details class="section" open>
+        <summary>Output</summary>
+        <label>Output type
+          <select id="main.outputType">
+            <option value="construction">Construction Geometry</option>
+            <option value="surface_panels">Surface Panels</option>
+          </select>
+        </label>
+        <span class="field-error" data-error-for="outputType"></span>
+
+        <label>Panel surface method
+          <select id="main.panelSurfaceMethod">
+            <option value="patch">Smooth patch (fast, approximate interior)</option>
+            <option value="sphere_split">True sphere (split via construction planes)</option>
+          </select>
+        </label>
+        <span class="field-hint">Only used when Output Type is Surface Panels. True sphere requires Simple panel style -- Trionda seams aren't planar, so they can't be split via construction planes yet.</span>
+        <span class="field-error" data-error-for="panelSurfaceMethod"></span>
+
+        <label><input type="checkbox" id="main.keepPanelWedges" style="width: auto;"> Keep panel wedge solids</label>
+        <span class="field-hint">Keeps each panel's solid wedge alongside its surface, for manipulating/3D printing the shape like Lucy's Shape Forge. Works with either panel surface method -- wedges are always a true sphere segment with flat sides, even when the panel surface itself is the approximate Smooth patch. Requires Simple panel style -- Trionda seams aren't planar, so they can't be split into flat-sided wedges yet.</span>
+        <span class="field-error" data-error-for="keepPanelWedges"></span>
+
+        <label>Wedge clearance (mm) <input type="number" step="0.05" min="0" id="main.wedgeClearance"></label>
+        <span class="field-hint">Only used when Keep panel wedge solids is checked. Shrinks each wedge's flat faces by half this amount, so two adjacent printed wedges end up this far apart instead of touching.</span>
+        <span class="field-error" data-error-for="wedgeClearance"></span>
+      </details>
+
+      <div class="actions">
+        <button type="button" class="clear-preview-button" data-action="clear_preview" data-tab="main">Clear Preview</button>
+        <button type="button" data-action="preview" data-tab="main">Preview</button>
+        <button type="button" data-action="generate" data-tab="main">Generate</button>
+      </div>
+
+      <div id="main-notification" class="notification hidden"></div>
+
+      <details class="section" open>
+        <summary>Configurations</summary>
+        <div class="config-active" id="main-config-active"></div>
+        <div class="actions secondary">
+          <button type="button" data-config-action="load" data-tab="main">Load&hellip;</button>
+          <button type="button" data-config-action="delete" data-tab="main">Delete&hellip;</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" data-config-action="save_as" data-tab="main">Save As&hellip;</button>
+          <button type="button" id="main-config-update" data-config-action="update_current" data-tab="main">Update Current</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" data-action="factory_reset" data-tab="main">Factory Reset</button>
+        </div>
+      </details>
+
+    </div>
+
+    <div id="tab-themes" class="tab-panel">
+      <details class="section" open>
+        <summary>Themes</summary>
+        <span class="field-hint">"System" (in the header above) follows your OS's light/dark setting automatically.</span>
+
+        <label>Font family
+          <select id="theme.fontFamily">
+            <option value="-apple-system, &quot;Segoe UI&quot;, Helvetica, Arial, sans-serif">Sans-serif</option>
+            <option value="Georgia, &quot;Times New Roman&quot;, Times, serif">Serif</option>
+            <option value="Consolas, &quot;Courier New&quot;, Courier, monospace">Monospace</option>
+          </select>
+        </label>
+        <label>Base font size (px)
+          <input type="number" id="theme.fontSize" min="10" max="20" step="1">
+        </label>
+        <span class="field-hint">Font settings apply on top of whichever theme is selected above, and are included when you export a theme below.</span>
+
+        <div class="actions secondary">
+          <button type="button" id="theme-import-json">Import theme.json&hellip;</button>
+          <button type="button" id="theme-export-json">Export theme.json&hellip;</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" id="theme-import-css">Import style.css&hellip;</button>
+          <button type="button" id="theme-export-css">Export style.css&hellip;</button>
+        </div>
+        <div class="actions secondary">
+          <button type="button" id="theme-remove" disabled>Remove Selected Theme</button>
+          <button type="button" id="theme-factory-reset">Factory Reset Themes</button>
+        </div>
+        <span class="field-hint" id="theme-import-hint"></span>
+      </details>
+    </div>
+
+    <div class="field-hint version-footer">LucysSurfaceForge<br><span id="footerVersion">vX.Y.Z</span></div>
+  </div>
+
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" role="dialog" aria-modal="true" tabindex="-1">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="modal-btn-cancel" id="modal-btn-cancel">Cancel</button>
+        <button type="button" class="modal-btn-confirm" id="modal-btn-confirm">OK</button>
+      </div>
+    </div>
+  </div>
+
+    <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

@@ -82,6 +82,76 @@ These are the standard variables currently used by Theme Designer Pro. You don't
 
 Naming convention: `--{category}-{role}` (e.g. `--btn-primary-hover`, `--status-error-text`). Stick to this pattern for any variables you add so Theme Designer Pro's generic parser and preview highlighter can still make sense of them.
 
+### 2a. Tokens added in v1.6.0 (34 more — 74 total) and their fallbacks
+
+The block above is the original 40. v1.6.0 adds 34 more for elements the original set didn't cover (accordions, form labels and hints, disabled states, danger buttons, links, tables, code, badges, tooltips, scrollbars, progress bars, text selection). **Every one has a fallback**, so a theme file written before v1.6.0 — or one that simply doesn't care about a given element — still renders correctly without defining them. In CSS the fallback is written into the consuming rule: `background: var(--section-bg, var(--row-bg));`.
+
+| Group | Token | Fallback | Styles |
+|---|---|---|---|
+| Sections & labels | `--section-bg` | `--row-bg` | `<details class="section">` body |
+| | `--section-border` | `--border-color` | accordion outline |
+| | `--section-header-bg` | `--row-bg` | `<summary>` / `.section-header` bar |
+| | `--section-header-text` | `--text-main` | `<summary>` / `.section-header` text |
+| | `--label-text` | `--text-main` | bold field labels (`label.field-label`, `.input-group > label`) |
+| Inputs & forms | `--field-hint` | `--text-sub` | helper text (`.field-hint`) |
+| | `--input-border-focus` | `--focus-ring` | border of a focused text input/select/textarea |
+| | `--disabled-bg` | `--row-hover` | disabled button/input/select/textarea background |
+| | `--disabled-text` | `--text-sub` | disabled control text (not contrast-checked — WCAG exempts disabled controls) |
+| | `--toggle-knob` | `#ffffff` (literal) | switch knob |
+| Buttons | `--btn-danger` | `#b02a37` (literal) | `.btn-danger` |
+| | `--btn-danger-hover` | `#8f2230` (literal) | |
+| | `--btn-danger-text` | `#ffffff` (literal) | |
+| Status | `--status-warning-bg` | `--banner-warning-bg` | `.status-box.warning` |
+| | `--status-warning-text` | `--banner-warning-text` | |
+| Links | `--link` | `--tab-active-text` | `a` |
+| | `--link-hover` | `--link` | `a:hover` |
+| Tables | `--table-header-bg` | `--section-header-bg` | `th` |
+| | `--table-header-text` | `--section-header-text` | |
+| | `--table-stripe-bg` | `--bg-body` | even `tbody` rows |
+| | `--table-row-hover` | `--row-hover` | `tbody tr:hover` |
+| Code & badges | `--code-bg` / `--code-text` | `--input-bg` / `--input-text` | `code`, `pre` |
+| | `--badge-bg` / `--badge-text` | `--tab-bg` / `--tab-text` | `.badge` chips |
+| Tooltips | `--tooltip-bg` / `--tooltip-text` | `--text-main` / `--bg-body` | `.tooltip` (inverse of the page by default) |
+| Scrollbars | `--scrollbar-track` | `--bg-body` | `::-webkit-scrollbar-track` / `-corner` |
+| | `--scrollbar-thumb` | `--border-color` | `::-webkit-scrollbar-thumb` |
+| | `--scrollbar-thumb-hover` | `--text-sub` | thumb on hover |
+| Progress | `--progress-track` | `--toggle-bg` | `.progress` |
+| | `--progress-fill` | `--btn-primary` | `.progress-bar` |
+| Selection | `--selection-bg` / `--selection-text` | `--btn-primary` / `--btn-primary-text` | `::selection` |
+
+Two fallbacks are literals instead of tokens (`--toggle-knob`, `--btn-danger*`) because no existing token is the right role — in a dark theme `--text-danger` is a *light* text color, which is wrong as a button fill.
+
+**Export rule:** Theme Designer Pro only writes a variable into an exported `.theme.json` / `style.css` theme block if the theme actually sets it. An unset new token is left out and derives from its fallback on the consuming side; it appears in the editor as a muted "← source-token" row with a ↺ button that removes an override. The bundled `style.css` themes define the full 74 explicitly.
+
+**Drop-in starting point:** [Theme_Designer_Pro_Base_Stylesheet.css](Theme_Designer_Pro_Base_Stylesheet.css) is the `:root` token block plus every element rule above, with the fallbacks. Copy it into a new add-in's `style.css`. It's generated from `style.css`; regenerate it after changing that file's rules.
+
+**Matching JS array** (`THEME_VAR_NAMES`, for add-ins that build a `<style>` tag or export from a list of known names — keep it in the same order):
+
+```js
+const THEME_VAR_NAMES = [
+  '--font-family', '--font-size-base',
+  '--bg-body', '--text-main', '--text-sub', '--border-color',
+  '--row-bg', '--row-border', '--row-hover',
+  '--section-bg', '--section-border', '--section-header-bg', '--section-header-text', '--label-text',
+  '--input-bg', '--input-border', '--input-border-focus', '--input-text', '--input-placeholder', '--field-hint', '--toggle-bg', '--toggle-knob', '--disabled-bg', '--disabled-text',
+  '--header-hover', '--tab-bg', '--tab-active-bg', '--tab-text', '--tab-active-text',
+  '--btn-primary', '--btn-primary-hover', '--btn-primary-text', '--btn-success', '--btn-success-hover', '--btn-success-text', '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text', '--btn-danger', '--btn-danger-hover', '--btn-danger-text',
+  '--status-success-bg', '--status-success-text', '--status-error-bg', '--status-error-text', '--status-info-bg', '--status-info-text', '--status-warning-bg', '--status-warning-text', '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border',
+  '--link', '--link-hover',
+  '--table-header-bg', '--table-header-text', '--table-stripe-bg', '--table-row-hover',
+  '--code-bg', '--code-text', '--badge-bg', '--badge-text',
+  '--tooltip-bg', '--tooltip-text',
+  '--scrollbar-track', '--scrollbar-thumb', '--scrollbar-thumb-hover',
+  '--progress-track', '--progress-fill',
+  '--selection-bg', '--selection-text',
+  '--focus-ring', '--text-danger', '--overlay-bg'
+];
+```
+
+**Form controls and the font settings:** `button, select, input, textarea { font-family: inherit; font-size: inherit; }` is part of the base stylesheet. Browsers don't cascade `font-family`/`font-size` from `body` onto those elements by default, so without it a Font Family / Base Font Size control changes headings and labels but silently skips buttons, dropdowns and inputs. Hardcoded `font-size: Npx` on any selector has the same effect — use `var(--font-size-base)` or `calc(var(--font-size-base) ± Npx)`.
+
+**Secondary buttons need an outline.** A `--btn-secondary` close to the surface behind it (as several bundled palettes had) makes the button vanish. The base stylesheet gives `.btn-secondary` a 1px `--input-border` outline, and Theme Designer Pro's contrast checker now flags a `--btn-secondary` that is within 1.3:1 of `--row-bg`, `--section-bg` or `--bg-body`.
+
 ---
 
 ## 3. Step-by-Step Integration

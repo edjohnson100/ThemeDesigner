@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html>
+<head>
+      <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h2>Finger Joints Live</h2>
+            <div id="versionTag" class="sub-header"></div>
+        </div>
+        <select id="themeSelect" onchange="changeTheme()" style="width: auto; height: 28px; font-size: calc(var(--font-size-base) - 2px); padding: 2px 5px;">
+            <option value="default">Default Light</option>
+            <!-- Options injected dynamically from style.css -->
+        </select>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-selections', event)">Joints</button>
+        <button class="tab-btn" onclick="switchTab('tab-dogbone', event)">Dogbone</button>
+        <button class="tab-btn" onclick="switchTab('tab-settings', event)">Themes</button>
+    </div>
+
+    <!-- TAB 1: JOINT SETUP -->
+    <div id="tab-selections" class="tab-content active">
+        
+        <div class="controls-bar" style="justify-content: flex-end; margin-bottom: 5px;">
+            <button class="action-btn" style="width: auto; font-size: calc(var(--font-size-base) - 2px); padding: 2px 8px;" onclick="showHelp()" title="Show Quick Help">Help</button>
+            <button class="action-btn" style="width: auto; font-size: calc(var(--font-size-base) - 2px); padding: 2px 8px;" onclick="sendAction('clear_selections')" title="Clear selected bodies">Clear Picks</button>
+        </div>
+
+        <div class="data-container" style="margin-bottom: 15px;">
+            <button id="btn-body0" class="btn-secondary" onclick="sendAction('select_body0')">Select 1st Body/Bodies (0)</button>
+            <button id="btn-body1" class="btn-secondary" onclick="sendAction('select_body1')">Select 2nd Body/Bodies (0)</button>
+            <button id="btn-dir" class="btn-secondary" onclick="sendAction('select_direction')">Select Direction (Auto)</button>
+        </div>
+
+        <div class="input-group" style="margin-bottom: 15px;">
+            <button class="btn-secondary" onclick="previewJoints()">Preview</button>
+            <button class="btn-primary" onclick="generateJoints()">Generate Joints</button>
+        </div>
+
+        <div id="jointsStatus" class="status-box"></div>
+
+        <div class="controls-bar">
+            <div class="search-container">
+                <select id="presetSelect" onchange="loadPreset()">
+                    <option value="">-- Presets --</option>
+                </select>
+            </div>
+            <button class="icon-btn" onclick="savePreset()" title="Save current settings as a new preset">Save</button>
+            <button class="icon-btn" onclick="updatePreset()" title="Overwrite the selected preset with current settings">Upd</button>
+            <button class="icon-btn del-btn" onclick="deletePreset()" title="Delete selected preset">X</button>
+            <button class="icon-btn" onclick="showResetConfirm()" title="Reset all settings to defaults">Clear</button>
+        </div>
+
+        <div class="section" id="section-config">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection(this.parentElement)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection(this.parentElement);}">
+                <h3>Configuration</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content data-container">
+                <div class="data-row">
+                    <div class="row-label" title="Joint Type">Joint Type</div>
+                    <div class="row-controls">
+                        <select id="jointType" onchange="updateVisibility(); autoPreview()" style="width: 130px;">
+                            <option value="box">Box / Finger</option>
+                            <option value="through dovetail">Through Dovetail</option>
+                            <option value="coplanar dovetail">Coplanar Dovetail</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-dovetailAngle">
+                    <div class="row-label" title="Taper angle of the dovetail pins/tails. Typical range 7-14 degrees.">Dovetail Angle</div>
+                    <div class="row-controls">
+                        <input type="text" id="dovetailAngle" value="10 deg" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-reverseTaper">
+                    <div class="row-label" title="Which face of the joint ends up wide vs. narrow. A corner dovetail and an inline splice (joining two coplanar panels end-to-end) typically need opposite settings for the teeth to interlock - if a dovetail doesn't assemble, try flipping this.">Reverse Taper</div>
+                    <div class="row-controls" style="display: flex; align-items: center; gap: 6px;">
+                        <input type="checkbox" id="reverseTaper" onchange="autoPreview()" style="width: auto;">
+                        <span style="font-size: calc(var(--font-size-base) - 2px); font-weight: normal; color: var(--text-sub);">try for inline joints</span>
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Placement Type">Placement</div>
+                    <div class="row-controls">
+                        <select id="placementType" onchange="autoPreview()" style="width: 130px;">
+                            <option value="fingers outside">Fingers outside</option>
+                            <option value="notches outside">Notches outside</option>
+                            <option value="same number of fingers and notches (start with finger)">Start w/ finger</option>
+                            <option value="same number of fingers and notches (start with notch)">Start w/ notch</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Size Distribution">Size Mode</div>
+                    <div class="row-controls">
+                        <select id="dynamicSizeType" onchange="updateVisibility(); autoPreview()" style="width: 130px;">
+                            <option value="equal notch and finger size">Equal Size</option>
+                            <option value="fixed notch size">Fixed Notch</option>
+                            <option value="fixed finger size">Fixed Finger</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label">Fixed Number of Fingers</div>
+                    <div class="row-controls">
+                        <input type="checkbox" id="isNumberOfFingersFixed" onchange="updateVisibility(); autoPreview()" style="width: auto;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-fixedNumFingers">
+                    <div class="row-label">Number of Fingers</div>
+                    <div class="row-controls">
+                        <input type="number" id="fixedNumFingers" value="3" min="1" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-fixedNotchSize">
+                    <div class="row-label">Notch Size</div>
+                    <div class="row-controls">
+                        <input type="text" id="fixedNotchSize" value="20 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-fixedFingerSize">
+                    <div class="row-label">Finger Size</div>
+                    <div class="row-controls">
+                        <input type="text" id="fixedFingerSize" value="20 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-minNotchSize">
+                    <div class="row-label">Minimal Notch Size</div>
+                    <div class="row-controls">
+                        <input type="text" id="minNotchSize" value="20 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-minFingerSize">
+                    <div class="row-label">Minimal Finger Size</div>
+                    <div class="row-controls">
+                        <input type="text" id="minFingerSize" value="20 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Positive = looser fit (extra clearance). Negative = tighter/interference fit — a good starting point for laser kerf compensation is a negative value close to your laser's kerf width, then fine-tune with a test cut.">Gap Between Fingers (Kerf Comp.)</div>
+                    <div class="row-controls">
+                        <input type="text" id="gap" value="0 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Experimental. Adds a standoff/air gap between the mating faces (e.g. so a pin stands proud) — a different direction than the finger gap above and unrelated to kerf. Negative values are not supported.">Gap To Part (Exp.)</div>
+                    <div class="row-controls">
+                        <input type="text" id="gapToPart" value="0 mm" oninput="autoPreview()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="How strongly the preview washes body0 (orange) and body1 (blue) so you can tell which panel each joint-color segment belongs to. Purely visual - has no effect on the generated joint.">Preview Opacity</div>
+                    <div class="row-controls">
+                        <select id="previewOpacity" onchange="autoPreview()" style="width: 130px;">
+                            <option value="light">Light</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                </div>
+                <details style="margin: 4px 0 0;">
+                    <summary style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); cursor: pointer;">How Gap Between Fingers &amp; Gap To Part work</summary>
+                    <p style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin: 4px 0 0;">
+                        Gap Between Fingers also doubles as kerf compensation: a negative value oversizes the joint before cutting so the laser's kerf brings it back to a snug fit. The right value depends on your laser and material — start near your kerf width and adjust based on a test cut. Gap To Part is unrelated (a standoff gap, not kerf) and does not accept negative values.
+                    </p>
+                </details>
+            </div>
+        </div>
+
+        <div class="section" id="section-buttjoint">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection(this.parentElement)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection(this.parentElement);}">
+                <h3>Close Butt Joint</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content data-container">
+                <button class="btn-primary" onclick="sendAction('extend_loop_start')">Extend Butt Joints (Loop)</button>
+                <p style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin: 4px 0 0;">
+                    Repeatedly prompts for an edge/corner/face to extend, then the target face to extend to.
+                    Click Cancel on either prompt to stop.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 2: DOG BONE -->
+    <div id="tab-dogbone" class="tab-content">
+
+        <div class="controls-bar" style="justify-content: flex-end; margin-bottom: 5px;">
+            <button class="action-btn" style="width: auto; font-size: calc(var(--font-size-base) - 2px); padding: 2px 8px;" onclick="sendAction('clear_dogbone_selections')" title="Clear selected body/face/edges">Clear Pick</button>
+        </div>
+
+        <div class="data-row" style="margin-bottom: 10px;">
+            <div class="row-label" title="How corners are chosen. Body: auto-detects every qualifying interior corner on each selected body, using its own bounding box to guess the plunge axis. Face: same auto-detection, but the plunge axis comes from each picked face's normal instead - use this when a body isn't axis-aligned and Body mode guesses wrong. Edge: manually pick exactly which corner edges to relieve, bypassing auto-detection entirely.">Selection Mode</div>
+            <div class="row-controls">
+                <select id="dogboneSelectionMode" onchange="updateVisibility(); autoPreviewDogbone()" style="width: 130px;">
+                    <option value="body">Body</option>
+                    <option value="face">Face</option>
+                    <option value="edge">Edge</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="data-container" style="margin-bottom: 15px;">
+            <button id="btn-dogboneBody" class="btn-secondary" onclick="sendAction('select_dogboneBody')">Select Body/Bodies to Relieve (0)</button>
+            <button id="btn-dogboneFace" class="btn-secondary" onclick="sendAction('select_dogboneFace')">Select Face(s) to Relieve (0)</button>
+            <button id="btn-dogboneEdges" class="btn-secondary" onclick="sendAction('select_dogboneEdges')">Select Corner Edges (0)</button>
+        </div>
+
+        <p id="grp-dogboneEdgeTip" style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin: -10px 0 15px;">
+            Tip: at a finger-joint notch, the true concave corner edge and a nearby convex edge can be easy to mix up. With kerf comp nonzero, turn on hidden-edge visibility to tell them apart. With kerf comp at zero, temporarily hide the notched body so only the correct edges are pickable. A picked edge that isn't a genuine concave corner is skipped automatically - see the status line below if any picks were skipped.
+        </p>
+
+        <div class="input-group" style="margin-bottom: 15px;">
+            <button class="btn-secondary" onclick="previewDogbones()">Preview</button>
+            <button class="btn-primary" onclick="applyDogbones()">Apply Dog Bones</button>
+        </div>
+
+        <div id="dogboneStatus" class="status-box"></div>
+
+        <div class="section" id="section-dogboneConfig">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection(this.parentElement)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection(this.parentElement);}">
+                <h3>Configuration</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content data-container">
+                <div class="data-row">
+                    <div class="row-label" title="Relief style. Corner: diagonal, centered on the corner's bisector (most common). Minimal Corner: same bisector but leaves a bit of material short of the corner for a tight forced fit. Long Side / Short Side: single-wall offset that bulges asymmetrically against whichever adjacent wall is longer/shorter at that specific corner.">Style</div>
+                    <div class="row-controls">
+                        <select id="dogboneStyle" onchange="updateVisibility(); autoPreviewDogbone()" style="width: 130px;">
+                            <option value="corner">Corner</option>
+                            <option value="minimal corner">Minimal Corner</option>
+                            <option value="long side">Long Side</option>
+                            <option value="short side">Short Side</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Diameter of the round router bit / end mill you'll cut this relief with. The relief radius (half the bit diameter) is derived automatically.">Router Bit Diameter</div>
+                    <div class="row-controls">
+                        <input type="text" id="dogboneDiameter" value="3 mm" oninput="autoPreviewDogbone()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row">
+                    <div class="row-label" title="Safety margin pushing each relief circle slightly past the exact corner instead of just touching it, so the cut unambiguously clears the corner and a tool-path generator doesn't reject it as smaller than the bit due to floating-point rounding at the exact tangent.">Clearance</div>
+                    <div class="row-controls">
+                        <input type="text" id="dogboneClearance" value="0.1 mm" oninput="autoPreviewDogbone()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-dogboneInterference">
+                    <div class="row-label" title="Minimal Corner style only: how much material is deliberately left short of the corner (the opposite sign of clearance), forcing a tight fit with a smaller, less visually obvious relief than Corner style.">Interference</div>
+                    <div class="row-controls">
+                        <input type="text" id="dogboneInterference" value="0.05 mm" oninput="autoPreviewDogbone()" style="width: 80px;">
+                    </div>
+                </div>
+
+                <div class="data-row" id="grp-dogboneAngleTolerance">
+                    <div class="row-label" title="How close to 90 degrees the angle between two adjacent faces must be for that corner to qualify for a dog bone relief. Only applies to Body/Face selection mode's auto-detection - Edge mode relieves exactly whichever corners you pick, regardless of angle.">Angle Tolerance</div>
+                    <div class="row-controls">
+                        <input type="text" id="dogboneAngleTolerance" value="5 deg" oninput="autoPreviewDogbone()" style="width: 80px;">
+                    </div>
+                </div>
+                <p style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin: 4px 0 0;">
+                    Select a body that's already had finger joints cut into it, then Preview/Apply to add round relief cuts at its interior corners so a CNC router bit can fully clear them. Not needed for laser or waterjet cutting.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: THEME MANAGER -->
+    <div id="tab-settings" class="tab-content">
+        <div class="section" id="section-thememanager">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection(this.parentElement)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection(this.parentElement);}">
+                <h3>Theme Manager</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content data-container">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: calc(var(--font-size-base) - 2px); font-weight: bold; color: var(--text-sub);">Font Family</label>
+                        <select id="fontFamilySelector" onchange="updateActiveThemeProperty('--font-family', this.value)" style="margin-top: 3px;">
+                            <option value="'Segoe UI', Tahoma, sans-serif">Sans-serif</option>
+                            <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                            <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: calc(var(--font-size-base) - 2px); font-weight: bold; color: var(--text-sub);">Base Font Size</label>
+                        <select id="fontSizeSelector" onchange="updateActiveThemeProperty('--font-size-base', this.value)" style="margin-top: 3px;">
+                            <option value="11px">11px</option><option value="12px">12px</option><option value="13px">13px</option>
+                            <option value="14px">14px</option><option value="15px">15px</option><option value="16px">16px</option>
+                            <option value="17px">17px</option><option value="18px">18px</option>
+                        </select>
+                    </div>
+                </div>
+                <p style="font-size: calc(var(--font-size-base) - 1px); margin-top: 0; color: var(--text-sub);">Import custom themes exported from Theme Designer, or export your current active theme.</p>
+                <div class="create-grid">
+                    <button class="btn-primary" onclick="requestImport('css')">📥 Import style.css</button>
+                    <button class="btn-primary" onclick="requestExport('css')">📤 Export style.css</button>
+                    <button class="btn-secondary" onclick="requestImport('json')">📂 Import .json</button>
+                    <button class="btn-secondary" onclick="requestExport('json')">💾 Export .json</button>
+                    <button id="themeRemoveBtn" class="btn-secondary full-width" onclick="removeSelectedTheme()" disabled title="Select a custom (imported) theme to enable" style="color: var(--text-danger, #d9534f); border-color: var(--text-danger, #d9534f);">🗑️ Remove Selected Theme</button>
+                    <button class="btn-secondary full-width" onclick="resetThemeCache()" style="color: var(--text-danger, #d9534f); border-color: var(--text-danger, #d9534f);">🗑️ Factory Reset Theme Cache</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="version-footer">Finger Joints Live<br><span id="footerVersion">v1.6.0</span>, September 2026</div>
+
+    <!-- Quick Help Modal -->
+    <div id="helpModal" class="modal-overlay" onclick="hideHelp(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>Quick Help</h3>
+            <div class="modal-label" style="font-weight: normal; margin-top: 10px; line-height: 1.5; font-size: var(--font-size-base);">
+                <ul style="padding-left: 20px; margin: 0;">
+                    <li style="margin-bottom: 8px;"><strong>1st Body/Bodies:</strong> Select one or multiple bodies where the <em>fingers</em> will be placed. Shown in blue in the preview.</li>
+                    <li style="margin-bottom: 8px;"><strong>2nd Body/Bodies:</strong> Select one or multiple bodies where the <em>notches</em> will be placed. Shown in orange in the preview.</li>
+                    <li style="margin-bottom: 8px;"><strong>Direction:</strong> Select an edge to define the joint's orientation. Leave this empty to automatically use the longest overlapping edge.</li>
+                </ul>
+            </div>
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button class="modal-btn btn-primary" onclick="hideHelp(event)">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reset to Defaults Confirm Modal -->
+    <div id="resetConfirmModal" class="modal-overlay" onclick="hideResetConfirm(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>Reset to Defaults?</h3>
+            <div class="modal-label" style="font-weight: normal; margin-top: 10px; line-height: 1.5; font-size: var(--font-size-base);">
+                This resets all joint parameters to their factory defaults. Saved presets and your current body/direction selections are not affected.
+            </div>
+            <div class="modal-actions" style="margin-top: 15px;">
+                <button class="modal-btn btn-secondary" onclick="hideResetConfirm(event)">Cancel</button>
+                <button class="modal-btn btn-primary" onclick="confirmResetDefaults()">Reset</button>
+            </div>
+        </div>
+    </div>
+
+      <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

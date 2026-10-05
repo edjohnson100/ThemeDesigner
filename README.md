@@ -1,6 +1,6 @@
 # 🎨 Theme Designer Pro
 
-**Version:** 1.5.0
+**Version:** 1.6.0
 
 **Author:** Ed Johnson (Making With An EdJ)
 
@@ -9,7 +9,17 @@
 **[👉 CLICK HERE TO USE THE LIVE THEME DESIGNER](https://edjohnson100.github.io/ThemeDesigner/)**
 
 ---
-## ✨ What's New in v1.5.0
+## ✨ What's New in v1.6.0
+
+* **34 new variables (74 total) for the elements the base set didn't cover:** collapsible `<details>` sections and field labels (`--section-*`, `--label-text`), field hints, input focus border, disabled controls, switch knob, a danger button, a warning status box, links, tables, code, badges/chips, tooltips, scrollbars, progress bars, and text selection. They're grouped in the Variables panel (collapsible headers) instead of one long list. Full list, what each styles, and its fallback: **[Theme_Designer_Pro_Integration_Guide.md](Theme_Designer_Pro_Integration_Guide.md)**, section 2a.
+* **Old themes keep working.** Every new variable falls back to an existing one (e.g. `--section-bg` → `--row-bg`), so a `.theme.json` or `style.css` from before v1.6.0 imports and renders unchanged. A variable a theme doesn't set shows in the editor as a muted, italic **← source** row; editing it creates an explicit override, and **↺** removes the override again. Exports only include variables a theme actually sets — click **⤓ Make all explicit** in the Variables header to copy every derived value into the theme first, so its `.theme.json` / `style.css` block lists all 74.
+* **Live Preview shows every new element** — accordion, labeled field with hint, disabled controls, danger button, warning status, table, link, code, badges, tooltip, progress bar, selection sample, scrollbar — and clicking any of them filters the Variables panel to the tokens that style it.
+* **The contrast checker covers the new pairs** (using each token's fallback value when a theme doesn't set it) and adds a **secondary-button visibility check**: a `--btn-secondary` within 1.3:1 of the surface behind it is flagged, since such buttons effectively disappear. Secondary buttons also get a 1px `--input-border` outline. Disabled text is deliberately not checked (WCAG exempts it).
+* **Bundled themes updated:** every theme now defines all 74 variables; Default Light, Hacker, Gruvbox Light, Warm Sepia and Hot Pink got a slightly darker `--btn-secondary` (same hue) so it no longer blends into its surroundings. Form controls now inherit Font Family / Base Font Size, so those settings reach buttons, dropdowns and inputs, not just headings.
+* **Fonts travel with exported themes:** **💾 Save .json** now also writes top-level `fontFamily` and `fontSize` (a number of px) — the shape FCEditor and similar add-ins read — in addition to `--font-family` / `--font-size-base` inside `vars`. **📂 Load .json** reads those keys back, so a theme exported from FCEditor keeps its font settings.
+* **Drop-in starting point for new add-ins:** **[Theme_Designer_Pro_Base_Stylesheet.css](Theme_Designer_Pro_Base_Stylesheet.css)** — the token block plus every element rule, with fallbacks.
+
+## What's New in v1.5.0
 
 * **Four more importable palettes:** [Nord](https://www.nordtheme.com/), [Dracula](https://draculatheme.com/), [Catppuccin](https://catppuccin.com/) (Mocha + Latte), and [GitHub Primer](https://primer.style/) (Light + Dark) are now available as `.theme.json` samples — grab one from the repo and load it with **📂 Load .json**. All four are MIT-licensed and reproduced faithfully from their official palettes (not adjusted to force a clean checker result — same policy as this repo's own Solarized samples). See **[ATTRIBUTIONS.md](ATTRIBUTIONS.md)** for full license text and honest contrast-warning notes per palette. These aren't in the default dropdown — same reasoning as Solarized, they're one click away without growing the curated bundled list.
 * **License changed to CC BY-SA 4.0:** Dropped the NonCommercial clause (was CC-BY-NC-SA) — commercial use of Theme Designer Pro itself, or of its exported output, is now explicitly permitted. Attribution and ShareAlike still apply. See **[LICENSE](LICENSE)**.

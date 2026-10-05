@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="style.css">
+    <title>Live Utilities</title>
+    <style>
+        /* Give snapshot buttons a primary color hover effect so they aren't overwhelming when resting */
+        .snapshot-btn:hover {
+            background-color: var(--btn-primary) !important;
+            border-color: var(--btn-primary) !important;
+            color: var(--btn-primary-text, #fff) !important;
+        }
+        .info-icon {
+            font-size: calc(var(--font-size-base) - 2px);
+            color: var(--text-sub);
+            cursor: pointer;
+            font-weight: normal;
+            vertical-align: middle;
+            pointer-events: auto;
+        }
+        .info-icon:hover { color: var(--text-main); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title-group">
+            <h2 id="appTitle">LIVE PARAMETERS</h2>
+            <div id="versionTag" class="sub-header"></div>
+            <div id="docName" class="sub-header">Scanning...</div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="icon-btn" onclick="refreshData()" title="Rescan Model" style="padding: 4px 8px; font-size: calc(var(--font-size-base) + 1px);">↻</button>
+            <select id="themeSelector" onchange="changeTheme()" title="Select Theme" style="font-size: calc(var(--font-size-base) - 1px); padding: 4px 8px; border-radius: 4px; background: var(--input-bg); color: var(--input-text); border: 1px solid var(--input-border); cursor: pointer; outline: none; margin-top: 5px;">
+                <option value="Default Light">Default Light</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-params')">Parameters</button>
+        <button class="tab-btn" onclick="switchTab('tab-config')">Config</button>
+        <button class="tab-btn" onclick="switchTab('tab-changelog')">Changelog</button>
+        <button class="tab-btn" onclick="switchTab('tab-scripts')">Scripts</button>
+        <button class="tab-btn" onclick="switchTab('tab-themes')">Themes</button>
+    </div>
+
+    <div id="statusMessage" class="status-box"></div>
+
+    <div id="tab-params" class="tab-content active">
+        <div class="controls-bar">
+            <label class="fav-toggle" title="Show Favorites Only">
+                <input type="checkbox" id="favFilterCheck">
+                <span>★ Favs Only</span>
+            </label>
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Filter parameters...">
+            </div>
+        </div>
+
+        <div class="section collapsed" id="sec-create-param">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-create-param')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-create-param')}">
+                <h3>Add Parameter</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="create-grid">
+                    <input type="text" id="new_name" placeholder="Name (e.g. Width)" />
+                    <select id="new_unit" onchange="toggleCustomUnit(this)">
+                        <option value="mm">Length (mm)</option>
+                        <option value="in">Length (in)</option>
+                        <option value="deg">Angle (deg)</option>
+                        <option value="">No Units</option>
+                        <option value="TEXT">Text</option>
+                        <option value="OTHER">Other...</option>
+                    </select>
+                    <input type="text" id="custom_unit" class="full-width" placeholder="Type unit (e.g. cm)" style="display:none;" />
+                    <input type="text" id="new_expr" placeholder="Expression" class="full-width" />
+                    <input type="text" id="new_comm" placeholder="Comment (Optional)" class="full-width" />
+                </div>
+                <button class="btn-primary" onclick="createParam()">Create Parameter</button>
+            </div>
+        </div>
+
+        <div id="paramList" class="data-container">
+            <h3 style="margin-top: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-size: var(--font-size-base);">User Parameters</h3>
+            <div id="userParamList" class="data-container">
+                <div class="empty-state">Loading parameters...</div>
+            </div>
+
+            <h3 style="margin-top: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; font-size: var(--font-size-base);">Model Parameters</h3>
+            <div id="modelParamList" class="data-container">
+                <div class="empty-state">Loading model parameters...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-config" class="tab-content">
+        <div class="section" id="sec-configs">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-configs')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-configs')}">
+                <h3>Snapshots</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="input-group" style="margin-top:0; margin-bottom:8px;">
+                    <input type="text" id="newConfigName" placeholder="Filter or new name..." oninput="filterConfigs()">
+                    <button class="btn-primary" onclick="saveSnapshot()">Save State</button>
+                </div>
+                <div id="configList" class="data-container"></div>
+            </div>
+        </div>
+
+        <div class="section" id="sec-features">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-features')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-features')}">
+                <h3>Tracked Features (CFG_) <span class="info-icon" tabindex="0" role="button" onclick="event.stopPropagation(); showAlertModal('Tracked Features (CFG_)', 'Controls timeline suppression for CFG_-prefixed groups and features.\n\nCFG_ sketches also appear in Tracked Visibility — suppress (timeline) and visibility (browser eye) are two independent controls.')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showAlertModal('Tracked Features (CFG_)', 'Controls timeline suppression for CFG_-prefixed groups and features.\n\nCFG_ sketches also appear in Tracked Visibility — suppress (timeline) and visibility (browser eye) are two independent controls.')}">ⓘ</span></h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div id="featureList" class="data-container"></div>
+            </div>
+        </div>
+
+        <div class="section" id="sec-visibility">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-visibility')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-visibility')}">
+                <h3>Tracked Visibility (CFG_) <span class="info-icon" tabindex="0" role="button" onclick="event.stopPropagation(); showAlertModal('Tracked Visibility (CFG_)', 'Controls browser visibility for CFG_-prefixed bodies, sketches, and components.\n\nCFG_ sketches appear here AND in Tracked Features — both sections expose independent controls.\n\nComponents suppressed from the timeline may need a manual rescan (↻) to restore their entry here.')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();showAlertModal('Tracked Visibility (CFG_)', 'Controls browser visibility for CFG_-prefixed bodies, sketches, and components.\n\nCFG_ sketches appear here AND in Tracked Features — both sections expose independent controls.\n\nComponents suppressed from the timeline may need a manual rescan (↻) to restore their entry here.')}">ⓘ</span></h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div id="visibilityList" class="data-container"></div>
+            </div>
+        </div>
+
+        <div class="section collapsed" id="sec-regroup">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-regroup')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-regroup')}">
+                <h3>Regroup Features</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div class="input-group" style="margin-bottom: 10px;">
+                    <input type="text" id="newMergedGroupName" placeholder="New Group Name (e.g. 18mm_Box)...">
+                    <button id="regroupBtn" class="btn-primary" onclick="mergeSelectedGroups()" disabled>Regroup</button>
+                </div>
+                <div style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin-bottom: 10px; margin-top: -5px;">Note: 'CFG_' is automatically prepended to the new group name</div>
+                <div id="selectedGroupsArea" class="data-container">
+                    <div class="empty-state" id="regroupEmptyState">Select a contiguous block of grouped features to continue.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section collapsed" id="sec-batch-export">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-batch-export')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-batch-export')}">
+                <h3>Batch Export</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div style="margin-bottom: 8px; font-size: calc(var(--font-size-base) - 1px);">
+                    <div style="color: var(--text-sub); margin-bottom: 3px;">Output folder:</div>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <span id="exportFolderDisplay" title="" style="flex-grow:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-main);">Not set</span>
+                        <button class="action-btn" onclick="pickExportFolder()" title="Change folder">📁</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 8px; font-size: calc(var(--font-size-base) - 1px);">
+                    <label><input type="checkbox" id="expSTEP" checked> STEP</label>
+                    <label><input type="checkbox" id="expSTL" checked> STL</label>
+                    <label><input type="checkbox" id="exp3MF" checked> 3MF</label>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px; font-size: calc(var(--font-size-base) - 1px);">
+                    <label><input type="radio" name="exportScope" value="all" checked> All</label>
+                    <label><input type="radio" name="exportScope" value="active"> Active</label>
+                    <label><input type="radio" name="exportScope" value="checked"> Checked</label>
+                    <label><input type="radio" name="exportScope" value="filtered"> Filtered</label>
+                </div>
+                <button class="btn-secondary" onclick="exportConfigs()">Export Configs...</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-changelog" class="tab-content">
+        <button class="btn-success" onclick="openDashboard()" style="margin-bottom: 15px;">📂 OPEN LOG DASHBOARD</button>
+        
+        <div class="section">
+            <div class="section-content" style="display: block;">
+                <label style="font-size: calc(var(--font-size-base) - 1px); font-weight: bold; margin-bottom: 5px; display: block;">Add Log Entry:</label>
+                <textarea id="newEntryText" placeholder="What did you change?"></textarea>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div>
+                        <input type="checkbox" id="autosaveCheck" checked> 
+                        <label for="autosaveCheck" style="cursor:pointer; font-size: calc(var(--font-size-base) - 1px);">Autosave Design</label>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="sendLogEntry()">Save Entry</button>
+            </div>
+        </div>
+
+        <div class="section collapsed" id="sec-milestone">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-milestone')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-milestone')}">
+                <h3>Milestones and Utilities</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <div style="margin-bottom: 10px;">
+                    <input type="text" id="milestoneReason" placeholder="Milestone Name (e.g. 'Final Draft')" style="margin-bottom:5px;">
+                    <button class="btn-secondary" onclick="createMilestone()">Archive & Start New Log</button>
+                </div>
+                <button class="btn-secondary" style="margin-bottom: 15px;" onclick="exportLog()">Export Changelog to File</button>
+
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-scripts" class="tab-content">
+        <div id="scriptLauncherList" class="data-container" style="margin-bottom: 15px;">
+            <div class="empty-state">Loading scripts...</div>
+        </div>
+
+        <div class="section collapsed" id="sec-script-manager">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-script-manager')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-script-manager')}">
+                <h3>Script Manager</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content">
+                <button class="btn-primary" style="margin-bottom: 15px;" onclick="document.getElementById('linkMacroModal').style.display='flex'">➕ Link New Script</button>
+                
+                <div id="scriptManagerList" class="data-container">
+                <div class="empty-state" style="font-size: calc(var(--font-size-base) - 2px);">No scripts to manage.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-themes" class="tab-content">
+        <div class="section" id="sec-theme-manager">
+            <div class="section-header" tabindex="0" role="button" onclick="toggleSection('sec-theme-manager')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleSection('sec-theme-manager')}">
+                <h3>Theme Manager</h3>
+                <span class="arrow">▼</span>
+            </div>
+            <div class="section-content data-container">
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: calc(var(--font-size-base) - 2px); font-weight: bold; color: var(--text-sub);">Font Family</label>
+                        <select id="fontFamilySelector" onchange="updateActiveThemeProperty('--font-family', this.value)" style="margin-top: 3px;">
+                            <option value="'Segoe UI', Tahoma, sans-serif">Sans-serif</option>
+                            <option value="Georgia, 'Times New Roman', Times, serif">Serif</option>
+                            <option value="'Consolas', 'Courier New', monospace">Monospace</option>
+                        </select>
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: calc(var(--font-size-base) - 2px); font-weight: bold; color: var(--text-sub);">Base Font Size</label>
+                        <select id="fontSizeSelector" onchange="updateActiveThemeProperty('--font-size-base', this.value)" style="margin-top: 3px;">
+                            <option value="11px">11px</option><option value="12px">12px</option><option value="13px">13px</option>
+                            <option value="14px">14px</option><option value="15px">15px</option><option value="16px">16px</option>
+                            <option value="17px">17px</option><option value="18px">18px</option>
+                        </select>
+                    </div>
+                </div>
+            <p style="font-size: calc(var(--font-size-base) - 1px); margin-top: 0; color: var(--text-sub);">Import custom themes via a JSON theme export or batch import custom style.css files.</p>
+                <div class="create-grid">
+                    <button class="btn-primary" onclick="requestImport('css')">📥 Import style.css</button>
+                    <button class="btn-primary" onclick="requestExport('css')">📤 Export style.css</button>
+                    <button class="btn-secondary" onclick="requestImport('json')">📂 Import .json</button>
+                    <button class="btn-secondary" onclick="requestExport('json')">💾 Export .json</button>
+                    <button id="themeRemoveBtn" class="btn-secondary full-width" onclick="removeSelectedTheme()" disabled title="Select a custom (imported) theme to enable" style="color: var(--text-danger, #d9534f); border-color: var(--text-danger, #d9534f);">🗑️ Remove Selected Theme</button>
+                    <button class="btn-secondary full-width" onclick="resetThemeCache()" style="color: var(--text-danger, #d9534f); border-color: var(--text-danger, #d9534f);">🗑️ Factory Reset Theme Cache</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="version-footer">Live Utilities<br><span id="footerVersion">v1.6.0</span>, August 2026</div>
+
+    <div id="editModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Edit Parameter</h3>
+            <div class="modal-label">Name</div>
+            <input type="text" id="editModalName">
+            <div class="modal-label">Comment</div>
+            <input type="text" id="editModalComment">
+            <input type="hidden" id="editModalOldName">
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeEditModal()">Cancel</button>
+                <button class="modal-btn btn-save" onclick="saveEditModal()">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h3 id="confirmModalTitle">Please Confirm</h3>
+            <p id="confirmModalMessage" style="font-size: calc(var(--font-size-base) - 1px); margin-bottom: 15px; color: var(--text-main); white-space: pre-line;"></p>
+            
+            <div class="modal-actions">
+                <button class="modal-btn btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+                <button class="modal-btn btn-save" onclick="executeConfirmModal()">Yes</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alertModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <h3 id="alertModalTitle">Done</h3>
+            <p id="alertModalMessage" style="font-size: calc(var(--font-size-base) - 1px); margin-bottom: 15px; color: var(--text-main); white-space: pre-line;"></p>
+            <div class="modal-actions">
+                <button class="modal-btn btn-save" onclick="closeAlertModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="linkMacroModal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Link a Python Script</h3>
+        <p style="font-size: calc(var(--font-size-base) - 2px); color: var(--text-sub); margin-bottom: 10px;">
+                Where is the script located? We'll jump directly to the folder.
+            </p>
+            
+            <div class="modal-actions" style="flex-direction: column; gap: 8px;">
+                <button class="btn-secondary" onclick="linkScript('scripts')">
+                    📂 My Scripts Folder
+                </button>
+                <button class="btn-secondary" style="border: 1px dashed var(--border-color);" onclick="linkScript('samples')">
+                    ⚙️ Fusion Sample Scripts
+                </button>
+                <button class="btn-secondary" onclick="linkScript('custom')">
+                    💻 Custom Location (From Device)
+                </button>
+            </div>
+            <button class="btn-cancel" style="margin-top: 10px;" onclick="document.getElementById('linkMacroModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+      <script src="../_common.js"></script>
+  <script src="preview-shim.js"></script>
+</body>
+</html>

@@ -9,7 +9,21 @@
         /* Minor inline additions specifically for the editor layout */
         .app-container { max-width: 900px; margin: 0 auto; }
         .color-picker { padding: 0; border: 1px solid var(--input-border); border-radius: 3px; cursor: pointer; height: 24px; width: 48px; background: none; }
-        .preview-sticky { position: sticky; top: 15px; }
+        .preview-sticky { position: sticky; top: 15px; max-height: calc(100vh - 30px); overflow-y: auto; }
+
+        /* Grouped variable pickers (VARIABLE_GROUPS) */
+        .var-group { margin-bottom: 6px; }
+        .var-group-header { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; margin-bottom: 4px; font-size: calc(var(--font-size-base) - 2px); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-sub); border-bottom: 1px solid var(--border-color); cursor: pointer; user-select: none; }
+        .var-group.collapsed .var-rows { display: none; }
+        .var-group.collapsed .arrow { transform: rotate(-90deg); }
+        .filtering .var-group.collapsed .var-rows { display: flex; } /* a filtered match must never hide inside a collapsed group */
+
+        /* Rows whose value is inherited from a fallback token rather than set by the theme */
+        .data-row.derived .row-label { font-style: italic; }
+        .data-row.derived input[type="text"] { color: var(--text-sub) !important; font-style: italic; }
+        .derived-tag { font-size: 10px; color: var(--text-sub); font-style: italic; white-space: nowrap; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+        .derived-reset { cursor: pointer; font-size: 12px; color: var(--tab-active-text); flex-shrink: 0; }
+        .derived-reset:hover { opacity: 0.7; }
         
         /* Animation for highlighting corresponding variables */
         @keyframes highlightPulse {
@@ -81,6 +95,7 @@
         <div class="section">
             <div class="section-header">
                 <h3>Variables</h3>
+                <span id="make-explicit" class="row-label" style="flex-grow: 0; font-weight: normal; color: var(--tab-active-text); cursor: pointer;" title="Copy every derived (&quot;← source&quot;) value into this theme as an explicit value, so exports list all variables" onclick="event.stopPropagation(); makeAllExplicit();">⤓ Make all explicit</span>
                 <span id="filter-clear" class="row-label" style="display: none; flex-grow: 0; font-weight: normal; color: var(--tab-active-text); cursor: pointer;" onclick="event.stopPropagation(); clearVariableFilter();">✕ Show All</span>
             </div>
             <!-- Scrollable container so it doesn't take up the whole screen -->
@@ -93,9 +108,20 @@
         <div class="section preview-sticky">
             <div class="section-header">
                 <h3>Live Preview</h3>
+                <select id="preview-source" style="display: none; width: auto; font-size: calc(var(--font-size-base) - 1px); padding: 2px 5px;" title="Preview your theme on a real add-in layout" onclick="event.stopPropagation();" onchange="changePreviewSource(this.value)">
+                    <option value="">Generic (built-in)</option>
+                </select>
             </div>
-            <div class="section-content">
-                
+
+            <!-- ADD-IN PREVIEW: a real add-in palette (synced into previews/ by tools/sync_previews.py) in an iframe -->
+            <div class="section-content" id="addin-preview" style="display: none;">
+                <iframe id="addin-frame" title="Add-in preview" style="width: 100%; height: min(70vh, 720px); border: 1px solid var(--border-color); border-radius: 4px; background: #fff;"></iframe>
+                <div id="addin-states" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px;"></div>
+                <div id="addin-note" class="sub-header" style="margin-top: 6px;"></div>
+            </div>
+
+            <div class="section-content" id="generic-preview">
+
                 <div class="tabs">
                     <button class="tab-btn active">Active Tab</button>
                     <button class="tab-btn">Inactive Tab</button>
@@ -159,14 +185,52 @@
                     <div class="create-grid">
                         <button class="btn-primary">Primary</button>
                         <button class="btn-secondary">Secondary</button>
-                        <button class="btn-success full-width">Success Button</button>
+                        <button class="btn-success">Success</button>
+                        <button class="btn-danger">Danger</button>
+                        <button class="btn-secondary full-width" disabled>Disabled Button</button>
                     </div>
 
                     <div class="banner-warning">⚠️ Unsaved edits — optional alert/banner strip</div>
 
                     <div class="status-box info" style="display: block;">ℹ️ Information Status</div>
                     <div class="status-box success" style="display: block;">✅ Success Status</div>
+                    <div class="status-box warning" style="display: block;">⚠️ Warning Status</div>
                     <div class="status-box error" style="display: block;">❌ Error Status Message</div>
+
+                    <details class="section" open>
+                        <summary>Accordion Section</summary>
+                        <div class="section-body">
+                            <label class="field-label" style="display: block; margin-bottom: 4px;">Labeled Field</label>
+                            <input type="text" placeholder="Field with a hint below...">
+                            <div class="field-hint" style="margin-top: 3px;">Helper text sits beneath a field.</div>
+                            <input type="text" value="Disabled input" disabled style="margin-top: 8px;">
+                        </div>
+                    </details>
+
+                    <table style="margin-bottom: 10px;">
+                        <thead><tr><th>Table Header</th><th>Value</th></tr></thead>
+                        <tbody>
+                            <tr><td>Row one</td><td>1</td></tr>
+                            <tr><td>Row two (zebra)</td><td>2</td></tr>
+                            <tr><td>Row three</td><td>3</td></tr>
+                        </tbody>
+                    </table>
+
+                    <p style="margin: 0 0 8px 0;">Body text with <a href="#" onclick="return false;">a link</a> and <code>inline code</code>.</p>
+                    <pre>code block preview</pre>
+
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;">
+                        <span class="badge">Badge</span>
+                        <span class="badge">Chip</span>
+                        <span class="tooltip">Tooltip</span>
+                        <span id="selection-sample" onclick="selectSampleText()" style="cursor: pointer;" title="Click to select this text and preview the selection colors">Select this text</span>
+                    </div>
+
+                    <div class="progress" style="margin-bottom: 10px;"><div class="progress-bar" style="width: 60%;"></div></div>
+
+                    <div class="scroll-demo" style="height: 54px; overflow-y: scroll; border: 1px solid var(--border-color); padding: 4px 8px; margin-bottom: 10px;">
+                        Scrollbar preview — scroll this box.<br>Line two<br>Line three<br>Line four<br>Line five<br>Line six
+                    </div>
 
                     <div class="modal-content" style="position: relative; width: 100%; max-width: none; box-sizing: border-box; box-shadow: none; margin-top: 10px;">
                         <h3>Modal Title</h3>
@@ -234,23 +298,64 @@
 <input type="file" id="file-input" style="display: none;" accept=".css,.json">
 
 <script>
-    const APP_VERSION = '1.4.0';
+    const APP_VERSION = '1.6.0';
 
-    const cssVariables = [
-        '--font-family', '--font-size-base',
-        '--bg-body', '--text-main', '--text-sub', '--border-color',
-        '--row-bg', '--row-border', '--row-hover',
-        '--input-bg', '--input-border', '--input-text', '--input-placeholder', '--toggle-bg',
-        '--header-hover', '--tab-bg', '--tab-active-bg', '--tab-text', '--tab-active-text',
-        '--btn-primary', '--btn-primary-hover', '--btn-primary-text',
-        '--btn-success', '--btn-success-hover', '--btn-success-text',
-        '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text',
-        '--status-success-bg', '--status-success-text',
-        '--status-error-bg', '--status-error-text',
-        '--status-info-bg', '--status-info-text',
-        '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border',
-        '--focus-ring', '--text-danger', '--overlay-bg'
+    // The variable schema, grouped for the picker UI. `cssVariables` (flat, in this order) is derived
+    // from it, so export order and every loop over "all variables" stays consistent with the groups.
+    const VARIABLE_GROUPS = [
+        { title: 'Typography', vars: ['--font-family', '--font-size-base'] },
+        { title: 'Base', vars: ['--bg-body', '--text-main', '--text-sub', '--border-color'] },
+        { title: 'Rows', vars: ['--row-bg', '--row-border', '--row-hover'] },
+        { title: 'Sections & Labels', vars: ['--section-bg', '--section-border', '--section-header-bg', '--section-header-text', '--label-text'] },
+        { title: 'Inputs & Forms', vars: ['--input-bg', '--input-border', '--input-border-focus', '--input-text', '--input-placeholder', '--field-hint', '--toggle-bg', '--toggle-knob', '--disabled-bg', '--disabled-text'] },
+        { title: 'Tabs & Headers', vars: ['--header-hover', '--tab-bg', '--tab-active-bg', '--tab-text', '--tab-active-text'] },
+        { title: 'Buttons', vars: ['--btn-primary', '--btn-primary-hover', '--btn-primary-text', '--btn-success', '--btn-success-hover', '--btn-success-text', '--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text', '--btn-danger', '--btn-danger-hover', '--btn-danger-text'] },
+        { title: 'Status & Banner', vars: ['--status-success-bg', '--status-success-text', '--status-error-bg', '--status-error-text', '--status-info-bg', '--status-info-text', '--status-warning-bg', '--status-warning-text', '--banner-warning-bg', '--banner-warning-text', '--banner-warning-border'] },
+        { title: 'Links', vars: ['--link', '--link-hover'] },
+        { title: 'Tables', vars: ['--table-header-bg', '--table-header-text', '--table-stripe-bg', '--table-row-hover'] },
+        { title: 'Code & Badges', vars: ['--code-bg', '--code-text', '--badge-bg', '--badge-text'] },
+        { title: 'Tooltips', vars: ['--tooltip-bg', '--tooltip-text'] },
+        { title: 'Scrollbars', vars: ['--scrollbar-track', '--scrollbar-thumb', '--scrollbar-thumb-hover'] },
+        { title: 'Progress', vars: ['--progress-track', '--progress-fill'] },
+        { title: 'Selection', vars: ['--selection-bg', '--selection-text'] },
+        { title: 'Accessibility', vars: ['--focus-ring', '--text-danger', '--overlay-bg'] }
     ];
+    const cssVariables = VARIABLE_GROUPS.flatMap(g => g.vars);
+
+    // Variables added after the original 40, and what each one falls back to when a theme doesn't
+    // define it: another token (starts with `--`) or a literal value. Mirrors the `var(--new, var(--old))`
+    // fallbacks in style.css's rules — keep the two in sync (see CLAUDE.md, v1.6.0+ notes). A token not
+    // listed here has no fallback (it must be defined by every theme).
+    const FALLBACKS = {
+        '--section-bg': '--row-bg', '--section-border': '--border-color',
+        '--section-header-bg': '--row-bg', '--section-header-text': '--text-main', '--label-text': '--text-main',
+        '--field-hint': '--text-sub', '--input-border-focus': '--focus-ring',
+        '--disabled-bg': '--row-hover', '--disabled-text': '--text-sub', '--toggle-knob': '#ffffff',
+        '--btn-danger': '#b02a37', '--btn-danger-hover': '#8f2230', '--btn-danger-text': '#ffffff',
+        '--status-warning-bg': '--banner-warning-bg', '--status-warning-text': '--banner-warning-text',
+        '--link': '--tab-active-text', '--link-hover': '--link',
+        '--table-header-bg': '--section-header-bg', '--table-header-text': '--section-header-text',
+        '--table-stripe-bg': '--bg-body', '--table-row-hover': '--row-hover',
+        '--code-bg': '--input-bg', '--code-text': '--input-text',
+        '--badge-bg': '--tab-bg', '--badge-text': '--tab-text',
+        '--tooltip-bg': '--text-main', '--tooltip-text': '--bg-body',
+        '--scrollbar-track': '--bg-body', '--scrollbar-thumb': '--border-color', '--scrollbar-thumb-hover': '--text-sub',
+        '--progress-track': '--toggle-bg', '--progress-fill': '--btn-primary',
+        '--selection-bg': '--btn-primary', '--selection-text': '--btn-primary-text'
+    };
+
+    // The value a theme actually renders for `name`: its own value, else its fallback chain's.
+    // Returns undefined when nothing in the chain is defined.
+    function resolveVar(vars, name) {
+        for (let i = 0; i < 10 && name !== undefined; i++) { // bounded: a cyclic FALLBACKS entry must not hang
+            if (vars && vars[name]) return vars[name];
+            const fb = FALLBACKS[name];
+            if (fb === undefined) return undefined;
+            if (!fb.startsWith('--')) return fb;
+            name = fb;
+        }
+        return undefined;
+    }
 
     let themes = {}; // Memory storage: { themeId: { "--var": "value" } }
     let baseCSS = ""; // Non-theme CSS rules (layout, structure)
@@ -308,8 +413,14 @@
         return (lighter + 0.05) / (darker + 0.05);
     }
 
-    // role: 'normal-text' (4.5:1 AA, 3:1 large-text-only) or 'ui-component' (3:1 AA, no large-text tier)
+    // role: 'normal-text' (4.5:1 AA, 3:1 large-text-only), 'ui-component' (3:1 AA, no large-text tier),
+    // or 'surface-distinct' (not a WCAG criterion — a "this control must not vanish into the surface behind
+    // it" floor of SURFACE_DISTINCT_MIN, used for secondary buttons that rely on fill color alone).
+    const SURFACE_DISTINCT_MIN = 1.3;
+    const ROLE_THRESHOLD = { 'normal-text': 4.5, 'ui-component': 3, 'surface-distinct': SURFACE_DISTINCT_MIN };
+
     function classifyContrast(ratio, role) {
+        if (role === 'surface-distinct') return ratio >= SURFACE_DISTINCT_MIN ? 'pass-aa' : 'fail';
         if (ratio >= 4.5) return 'pass-aa';
         if (role === 'normal-text' && ratio >= 3) return 'pass-large';
         if (role === 'ui-component' && ratio >= 3) return 'pass-aa';
@@ -324,7 +435,9 @@
         return { status: classifyContrast(ratio, role), ratio };
     }
 
-    // Built-in semantic pairs, trimmed to tokens that actually exist in the standard 40-variable set.
+    // Built-in semantic pairs over the standard 74-variable set. Values are read through resolveVar(), so a
+    // token a theme leaves unset is checked at the value it actually renders (its fallback), not skipped.
+    // Deliberately NOT checked: --disabled-text on --disabled-bg (WCAG 1.4.3 exempts disabled controls).
     // `accepted: true` marks a pair as a known, by-design warning (decorative hairlines/borders that
     // are also distinguished by a background-color difference elsewhere) — not something to chase to
     // a green checkmark. See CLAUDE.md's v1.3.0+ notes before changing which pairs carry this flag.
@@ -348,6 +461,27 @@
         { fg: '--status-info-text', bg: '--status-info-bg', role: 'normal-text' },
         { fg: '--banner-warning-text', bg: '--banner-warning-bg', role: 'normal-text' },
         { fg: '--text-danger', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--text-main', bg: '--section-bg', role: 'normal-text' },
+        { fg: '--section-header-text', bg: '--section-header-bg', role: 'normal-text' },
+        { fg: '--label-text', bg: '--section-bg', role: 'normal-text' },
+        { fg: '--label-text', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--field-hint', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--field-hint', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--btn-danger-text', bg: '--btn-danger', role: 'normal-text' },
+        { fg: '--btn-danger-text', bg: '--btn-danger-hover', role: 'normal-text' },
+        { fg: '--status-warning-text', bg: '--status-warning-bg', role: 'normal-text' },
+        { fg: '--link', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--link', bg: '--row-bg', role: 'normal-text' },
+        { fg: '--link-hover', bg: '--bg-body', role: 'normal-text' },
+        { fg: '--table-header-text', bg: '--table-header-bg', role: 'normal-text' },
+        { fg: '--text-main', bg: '--table-stripe-bg', role: 'normal-text' },
+        { fg: '--code-text', bg: '--code-bg', role: 'normal-text' },
+        { fg: '--badge-text', bg: '--badge-bg', role: 'normal-text' },
+        { fg: '--tooltip-text', bg: '--tooltip-bg', role: 'normal-text' },
+        { fg: '--selection-text', bg: '--selection-bg', role: 'normal-text' },
+        { fg: '--btn-secondary', bg: '--row-bg', role: 'surface-distinct' },
+        { fg: '--btn-secondary', bg: '--section-bg', role: 'surface-distinct' },
+        { fg: '--btn-secondary', bg: '--bg-body', role: 'surface-distinct' },
         { fg: '--input-border', bg: '--input-bg', role: 'ui-component', accepted: true },
         { fg: '--input-border', bg: '--bg-body', role: 'ui-component', accepted: true },
         { fg: '--border-color', bg: '--bg-body', role: 'ui-component', accepted: true },
@@ -358,7 +492,7 @@
         if (!vars) return [];
         return CONTRAST_PAIRS.map(pair => ({
             fgVar: pair.fg, bgVar: pair.bg, role: pair.role, accepted: !!pair.accepted,
-            ...checkContrastPair(vars[pair.fg], vars[pair.bg], pair.role)
+            ...checkContrastPair(resolveVar(vars, pair.fg), resolveVar(vars, pair.bg), pair.role)
         }));
     }
 
@@ -447,14 +581,17 @@
         const currentId = document.getElementById('theme-selector').value;
         const vars = themes[currentId];
         if (!vars) return null;
-        const fgColor = parseColor(vars[fgVar]);
+        const fgColor = parseColor(resolveVar(vars, fgVar));
         if (!fgColor) return null;
 
+        // Every non-accepted pair this variable sits in, on either side — contrast is symmetric, so a fix
+        // for e.g. --btn-secondary (the "fg" of its surface-distinct pairs) must also keep its own text
+        // (--btn-secondary-text, where it is the "bg") readable instead of trading one failure for another.
         const constraints = CONTRAST_PAIRS
-            .filter(p => p.fg === fgVar && !p.accepted)
+            .filter(p => (p.fg === fgVar || p.bg === fgVar) && !p.accepted)
             .map(p => {
-                const bg = parseColor(vars[p.bg]);
-                return bg ? { bg, threshold: p.role === 'normal-text' ? 4.5 : 3 } : null;
+                const other = parseColor(resolveVar(vars, p.fg === fgVar ? p.bg : p.fg));
+                return other ? { bg: other, threshold: ROLE_THRESHOLD[p.role] } : null;
             })
             .filter(Boolean);
 
@@ -560,7 +697,8 @@
                 badge.title = checks.map(c => {
                     const ratioText = c.ratio ? c.ratio.toFixed(2) + ':1 — ' : '';
                     const acceptedNote = c.status === 'fail' && c.accepted ? ' — known, accepted by design (see README.md)' : '';
-                    return `${c.fgVar} on ${c.bgVar}: ${ratioText}${label[c.status]}${acceptedNote}`;
+                    const roleNote = c.role === 'surface-distinct' ? ` — visibility check (min ${SURFACE_DISTINCT_MIN}:1), not a WCAG ratio` : '';
+                    return `${c.fgVar} on ${c.bgVar}: ${ratioText}${label[c.status]}${roleNote}${acceptedNote}`;
                 }).join('\n');
             }
 
@@ -629,6 +767,7 @@
         changeTheme("");
         setupFileInput();
         setupPreviewHighlighter();
+        loadPreviewManifest();
     }
 
     // Swaps in the frozen "has real warnings" snapshot — same pipeline as init(), just a fixed URL
@@ -666,7 +805,20 @@
     function createPickers() {
         const container = document.getElementById('variables-container');
         container.innerHTML = '';
-        cssVariables.forEach(v => {
+        VARIABLE_GROUPS.forEach(group => {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'var-group';
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'var-group-header';
+        groupHeader.innerHTML = `<span>${group.title}</span><span class="arrow">▼</span>`;
+        groupHeader.addEventListener('click', () => groupEl.classList.toggle('collapsed'));
+        const rowsEl = document.createElement('div');
+        rowsEl.className = 'var-rows data-container';
+        groupEl.appendChild(groupHeader);
+        groupEl.appendChild(rowsEl);
+        container.appendChild(groupEl);
+
+        group.vars.forEach(v => {
             const row = document.createElement('div');
             row.className = 'data-row';
             const label = document.createElement('span');
@@ -762,10 +914,82 @@
             fixLink.addEventListener('click', () => openFixConfirmModal(v));
             controls.appendChild(fixLink);
 
+            // Derived-value controls (only for tokens that have a fallback): a tag showing what the value
+            // is derived from, and a reset button that drops an explicit override so it derives again.
+            if (FALLBACKS[v] !== undefined) {
+                const tag = document.createElement('span');
+                tag.className = 'derived-tag';
+                tag.id = v + '-derived';
+                controls.appendChild(tag);
+
+                const reset = document.createElement('span');
+                reset.className = 'derived-reset';
+                reset.id = v + '-reset';
+                reset.textContent = '↺';
+                reset.title = `Remove this override and derive from ${FALLBACKS[v]} again`;
+                reset.addEventListener('click', () => resetToDerived(v));
+                controls.appendChild(reset);
+            }
+
             row.appendChild(label);
             row.appendChild(controls);
-            container.appendChild(row);
+            rowsEl.appendChild(row);
         });
+        });
+    }
+
+    // Writes the value a derived (unset) token currently resolves to into its inputs, and toggles the
+    // derived tag / reset button. Rows being typed in are left alone so the caret isn't disturbed.
+    function updateDerivedRows(id) {
+        const vars = themes[id];
+        if (!vars) return;
+        cssVariables.forEach(v => {
+            if (FALLBACKS[v] === undefined) return;
+            const row = document.getElementById(v)?.closest('.data-row');
+            if (!row) return;
+            const isDerived = !vars[v];
+            row.classList.toggle('derived', isDerived);
+            const tag = document.getElementById(v + '-derived');
+            if (tag) {
+                const src = FALLBACKS[v];
+                tag.textContent = isDerived ? '← ' + (src.startsWith('--') ? src.slice(2) : 'default') : '';
+                tag.title = isDerived ? `Not set in this theme — renders as ${src.startsWith('--') ? src : 'the literal default ' + src}` : '';
+            }
+            const reset = document.getElementById(v + '-reset');
+            if (reset) reset.style.display = isDerived ? 'none' : 'inline-block';
+            if (isDerived) {
+                const resolved = resolveVar(vars, v) || '';
+                const textInput = document.getElementById(v);
+                if (textInput && document.activeElement !== textInput) textInput.value = resolved;
+                const colorInput = document.getElementById(v + '-color');
+                if (colorInput) colorInput.value = colorToHex(resolved);
+            }
+        });
+    }
+
+    // Copies every derived (unset) token's current value into the active theme, so its exports list all
+    // variables instead of relying on fallbacks. Values are resolved first, then written, so the order
+    // of the loop can't change what a later token derives from.
+    function makeAllExplicit() {
+        const currentId = document.getElementById('theme-selector').value;
+        const vars = themes[currentId];
+        if (!vars) return;
+        const resolved = {};
+        cssVariables.forEach(v => {
+            if (!vars[v] && FALLBACKS[v] !== undefined) {
+                const val = resolveVar(vars, v);
+                if (val) resolved[v] = val;
+            }
+        });
+        Object.assign(vars, resolved);
+        updateStyleTag();
+    }
+
+    function resetToDerived(v) {
+        const currentId = document.getElementById('theme-selector').value;
+        if (!themes[currentId]) return;
+        delete themes[currentId][v];
+        updateStyleTag();
     }
 
     function colorToHex(color) {
@@ -795,6 +1019,7 @@
                 }
             }
         });
+        updateDerivedRows(id);
     }
 
     function changeTheme(id) {
@@ -806,6 +1031,7 @@
         }
         updatePickers(id);
         updateContrastResults();
+        applyThemeToFrame();
     }
 
     function updateThemeDropdown() {
@@ -857,6 +1083,13 @@
             out += `${sel} {\n`;
             for (let v of cssVariables) {
                 if (themes[id][v]) out += `    ${v}: ${themes[id][v]};\n`;
+                // Preview only (never exported): re-declare an unset token as its fallback so it derives live.
+                // Without this, style.css's own explicit value for the same token would show through
+                // after a reset, because this tag only overrides what it declares.
+                else if (FALLBACKS[v] !== undefined) {
+                    const fb = FALLBACKS[v];
+                    out += `    ${v}: ${fb.startsWith('--') ? `var(${fb})` : fb};\n`;
+                }
             }
             out += `}\n`;
         }
@@ -867,6 +1100,8 @@
             document.head.appendChild(styleTag);
         }
         styleTag.innerHTML = out;
+        updateDerivedRows(document.getElementById('theme-selector').value);
+        applyThemeToFrame();
         updateContrastResults();
     }
 
@@ -930,6 +1165,12 @@
     function saveSingleTheme() {
         let id = document.getElementById('theme-selector').value;
         let data = { id: id, vars: themes[id] };
+        // Add-ins like FCEditor keep fonts out of `vars` and read them from these two top-level keys
+        // (fontSize as a plain number of px). They stay in `vars` too, for add-ins that apply fonts as variables.
+        const vars = themes[id] || {};
+        if (vars['--font-family']) data.fontFamily = vars['--font-family'];
+        const px = parseFloat(vars['--font-size-base']);
+        if (!isNaN(px)) data.fontSize = px;
         downloadFile(JSON.stringify(data, null, 2), "application/json", (id || "default") + ".theme.json");
     }
 
@@ -970,6 +1211,10 @@
                         const themeData = JSON.parse(content);
                         if (themeData.vars && themeData.id !== undefined) {
                             themes[themeData.id] = themeData.vars;
+                            // Top-level fonts (the FCEditor-style shape) become the font variables; they win over
+                            // anything in `vars` because that is where those add-ins treat them as authoritative.
+                            if (themeData.fontFamily) themes[themeData.id]['--font-family'] = themeData.fontFamily;
+                            if (themeData.fontSize) themes[themeData.id]['--font-size-base'] = /^\d+(\.\d+)?$/.test(String(themeData.fontSize)) ? `${themeData.fontSize}px` : String(themeData.fontSize);
                             updateThemeDropdown();
                             updateStyleTag();
                             changeTheme(themeData.id);
@@ -1006,12 +1251,29 @@
         baseCSS = "\n/* Note: base layout CSS was not loaded. Please Import style.css first if you want to export a full file. */\n";
     }
 
+    // ::selection only shows on a real selection, so the preview's sample text selects itself on click.
+    function selectSampleText() {
+        const el = document.getElementById('selection-sample');
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
     // --- INTERACTIVE PREVIEW HIGHLIGHTER ---
+    // While filtering, group headers with no matching row are hidden and collapsed groups are forced
+    // open (`.filtering` in CSS), so a matched variable is never stuck inside a collapsed group.
     function filterVariableRows(matchedVars) {
         cssVariables.forEach(v => {
             const row = document.getElementById(v)?.closest('.data-row');
             if (row) row.style.display = matchedVars.includes(v) ? '' : 'none';
         });
+        document.querySelectorAll('.var-group').forEach(g => {
+            const anyVisible = [...g.querySelectorAll('.data-row')].some(r => r.style.display !== 'none');
+            g.style.display = anyVisible ? '' : 'none';
+        });
+        document.getElementById('variables-container').classList.add('filtering');
         document.getElementById('filter-clear').style.display = 'inline';
     }
 
@@ -1020,6 +1282,8 @@
             const row = document.getElementById(v)?.closest('.data-row');
             if (row) row.style.display = '';
         });
+        document.querySelectorAll('.var-group').forEach(g => { g.style.display = ''; });
+        document.getElementById('variables-container').classList.remove('filtering');
         document.getElementById('filter-clear').style.display = 'none';
     }
 
@@ -1028,18 +1292,37 @@
         if (!previewContainer) return;
         
         // Map selectors to the variables that control their colors
+        // v1.6.0 entries sit where their selector can't be swallowed by a broader one below it:
+        // disabled controls before every button/input rule, `summary`/labels/hints/`code` before the
+        // `details.section`/`.data-row`/`.modal-content` containers they live inside.
         const elementMap = [
+            { selector: 'button:disabled, input:disabled', vars: ['--disabled-bg', '--disabled-text'] },
+            { selector: '.btn-danger', vars: ['--btn-danger', '--btn-danger-hover', '--btn-danger-text'] },
             { selector: '.btn-primary, .btn-save', vars: ['--btn-primary', '--btn-primary-hover', '--btn-primary-text'] },
             { selector: '.btn-secondary, .btn-cancel', vars: ['--btn-secondary', '--btn-secondary-hover', '--btn-secondary-text'] },
             { selector: '.btn-success', vars: ['--btn-success', '--btn-success-hover', '--btn-success-text'] },
             { selector: '.action-btn', vars: ['--row-bg', '--row-hover', '--border-color', '--text-sub'] },
             { selector: '.tab-btn.active', vars: ['--tab-active-bg', '--tab-active-text', '--border-color'] },
             { selector: '.tab-btn', vars: ['--tab-bg', '--tab-text', '--border-color'] },
-            { selector: '.switch', vars: ['--toggle-bg', '--btn-success'] },
-            { selector: '.theme-switch', vars: ['--toggle-bg', '--btn-primary'] },
+            { selector: '.switch', vars: ['--toggle-bg', '--toggle-knob', '--btn-success'] },
+            { selector: '.theme-switch', vars: ['--toggle-bg', '--toggle-knob', '--btn-primary'] },
             { selector: 'input[type="radio"], input[type="checkbox"]', vars: ['--btn-primary'] },
             { selector: 'input[type="range"]', vars: ['--toggle-bg', '--btn-primary'] },
-            { selector: 'select, input[type="text"], textarea', vars: ['--input-bg', '--input-border', '--input-text', '--input-placeholder'] },
+            { selector: 'select, input[type="text"], textarea', vars: ['--input-bg', '--input-border', '--input-border-focus', '--input-text', '--input-placeholder'] },
+            { selector: '.field-hint', vars: ['--field-hint'] },
+            { selector: 'label.field-label, .input-group > label', vars: ['--label-text'] },
+            { selector: 'a', vars: ['--link', '--link-hover'] },
+            { selector: 'pre, code', vars: ['--code-bg', '--code-text'] },
+            { selector: '.badge', vars: ['--badge-bg', '--badge-text'] },
+            { selector: '.tooltip', vars: ['--tooltip-bg', '--tooltip-text'] },
+            { selector: '.progress', vars: ['--progress-track', '--progress-fill'] },
+            { selector: '.scroll-demo', vars: ['--scrollbar-track', '--scrollbar-thumb', '--scrollbar-thumb-hover'] },
+            { selector: '#selection-sample', vars: ['--selection-bg', '--selection-text'] },
+            { selector: 'th', vars: ['--table-header-bg', '--table-header-text'] },
+            { selector: 'td', vars: ['--table-stripe-bg', '--table-row-hover', '--text-main', '--row-border'] },
+            { selector: 'summary', vars: ['--section-header-bg', '--section-header-text', '--header-hover', '--section-border'] },
+            { selector: 'details.section', vars: ['--section-bg', '--section-border'] },
+            { selector: '.status-box.warning', vars: ['--status-warning-bg', '--status-warning-text'] },
             { selector: '.status-box.info', vars: ['--status-info-bg', '--status-info-text'] },
             { selector: '.status-box.success', vars: ['--status-success-bg', '--status-success-text'] },
             { selector: '.status-box.error', vars: ['--status-error-bg', '--status-error-text'] },
@@ -1057,27 +1340,220 @@
             for (let item of elementMap) {
                 if (e.target.closest(item.selector)) { matchedVars = item.vars; break; }
             }
-            
+
             // If clicking empty background area
             if (matchedVars.length === 0 && e.target.closest('.section-content')) { matchedVars = ['--bg-body', '--text-main', '--text-sub']; }
 
-            if (matchedVars.length > 0) {
-                filterVariableRows(matchedVars);
-                document.querySelectorAll('.highlight-var').forEach(el => el.classList.remove('highlight-var'));
+            if (matchedVars.length > 0) highlightVariables(matchedVars);
+        });
+    }
 
-                let firstRow = null;
-                matchedVars.forEach(v => {
-                    const input = document.getElementById(v);
-                    if (input && input.closest('.data-row')) {
-                        const row = input.closest('.data-row');
-                        void row.offsetWidth; // Trigger reflow to restart CSS animation
-                        row.classList.add('highlight-var');
-                        if (!firstRow) firstRow = row;
-                    }
-                });
-                if (firstRow) { firstRow.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    // Filters the Variables panel to `matchedVars` and pulses/scrolls to their rows.
+    function highlightVariables(matchedVars) {
+        filterVariableRows(matchedVars);
+        document.querySelectorAll('.highlight-var').forEach(el => el.classList.remove('highlight-var'));
+
+        let firstRow = null;
+        matchedVars.forEach(v => {
+            const input = document.getElementById(v);
+            if (input && input.closest('.data-row')) {
+                const row = input.closest('.data-row');
+                void row.offsetWidth; // Trigger reflow to restart CSS animation
+                row.classList.add('highlight-var');
+                if (!firstRow) firstRow = row;
             }
         });
+        if (firstRow) { firstRow.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    }
+
+    // --- ADD-IN PREVIEWS (real palette layouts in an iframe; see previews/README.md) ---
+    let previewManifest = [];
+
+    async function loadPreviewManifest() {
+        const select = document.getElementById('preview-source');
+        try {
+            const res = await fetch('previews/manifest.json');
+            if (!res.ok) throw new Error('no manifest');
+            previewManifest = (await res.json()).addins || [];
+        } catch (e) {
+            return; // Not served over http(s), or no previews synced: stay on the generic preview.
+        }
+        if (!previewManifest.length) return;
+        previewManifest.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = a.name;
+            select.appendChild(opt);
+        });
+        select.style.display = '';
+
+        // Deep link: ThemeDesigner.html?preview=FCEditor opens straight onto that add-in's layout.
+        const wanted = new URLSearchParams(location.search).get('preview');
+        if (wanted && previewManifest.some(a => a.id === wanted)) {
+            select.value = wanted;
+            changePreviewSource(wanted);
+        }
+    }
+
+    function changePreviewSource(id) {
+        const frame = document.getElementById('addin-frame');
+        const addin = previewManifest.find(a => a.id === id);
+        document.getElementById('generic-preview').style.display = addin ? 'none' : '';
+        document.getElementById('addin-preview').style.display = addin ? '' : 'none';
+        document.getElementById('addin-states').innerHTML = '';
+        if (!addin) { frame.removeAttribute('src'); return; }
+        document.getElementById('addin-note').textContent =
+            `Snapshot of ${addin.name}${addin.version ? ' v' + addin.version : ''}, synced ${addin.synced}. Click anything in it to find its variables. Its own theme picker is inactive here: switch themes with Active Theme above.`;
+        frame.onload = onAddinFrameLoad;
+        frame.src = addin.path;
+    }
+
+    function onAddinFrameLoad() {
+        const frame = document.getElementById('addin-frame');
+        const doc = frame.contentDocument;
+        if (!doc) return;
+        applyThemeToFrame();
+        doc.addEventListener('click', (e) => {
+            const found = variablesForFrameElement(e.target);
+            highlightVariables(found.length ? found : ['--bg-body', '--text-main', '--text-sub']);
+        });
+
+        // States the shim exposes (notifications, dialogs...) become buttons under the preview.
+        const box = document.getElementById('addin-states');
+        box.innerHTML = '';
+        const states = frame.contentWindow.__previewStates || {};
+        Object.keys(states).forEach(label => {
+            const b = document.createElement('button');
+            b.className = 'btn-secondary';
+            b.style.cssText = 'width: auto; padding: 4px 10px; font-size: calc(var(--font-size-base) - 1px);';
+            b.textContent = label;
+            b.addEventListener('click', () => states[label]());
+            box.appendChild(b);
+        });
+    }
+
+    // Overrides the add-in's own theme variables with the active theme. Declared at very high
+    // specificity so it beats the add-in's :root / :root[data-theme] blocks; an unset token that has a
+    // fallback is declared as var(--fallback) so it derives exactly as it would in the add-in.
+    function applyThemeToFrame() {
+        const frame = document.getElementById('addin-frame');
+        const doc = frame && frame.contentDocument;
+        if (!doc || !doc.head) return;
+        const vars = themes[document.getElementById('theme-selector').value];
+        if (!vars) return;
+        let out = 'html:root:root:root {\n';
+        cssVariables.forEach(v => {
+            if (vars[v]) out += `  ${v}: ${vars[v]};\n`;
+            else if (FALLBACKS[v] !== undefined) out += `  ${v}: ${FALLBACKS[v].startsWith('--') ? `var(${FALLBACKS[v]})` : FALLBACKS[v]};\n`;
+        });
+        out += '}\n';
+        let tag = doc.getElementById('td-theme-override');
+        if (!tag) {
+            tag = doc.createElement('style');
+            tag.id = 'td-theme-override';
+            doc.head.appendChild(tag);
+        }
+        tag.textContent = out;
+    }
+
+    // Names of the variables a CSS value reads, skipping anything inside a var() fallback —
+    // `var(--section-bg, var(--row-bg))` yields only --section-bg, the token the author means to edit.
+    function varNamesIn(text) {
+        const names = [];
+        let i = 0;
+        while ((i = text.indexOf('var(', i)) !== -1) {
+            i += 4;
+            const m = /^\s*(--[\w-]+)/.exec(text.slice(i));
+            if (!m) continue;
+            names.push(m[1]);
+            for (let depth = 1; i < text.length && depth > 0; i++) {
+                if (text[i] === '(') depth++;
+                else if (text[i] === ')') depth--;
+            }
+        }
+        return names;
+    }
+
+    // Approximate CSS specificity [ids, classes/attributes/pseudo-classes, elements] of one selector.
+    function selectorSpecificity(sel) {
+        const ids = (sel.match(/#[\w-]+/g) || []).length;
+        const classes = (sel.match(/\.[\w-]+|\[[^\]]*\]|:(?!:)[\w-]+/g) || []).length;
+        const elements = (sel.replace(/\[[^\]]*\]|\([^)]*\)/g, '').match(/(^|[\s>+~])[a-zA-Z][\w-]*/g) || []).length;
+        return [ids, classes, elements];
+    }
+    function compareSpecificity(a, b) {
+        for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] - b[i];
+        return 0;
+    }
+
+    // For each property group `el` gets from the add-in's stylesheets, the declaration that wins the
+    // cascade (highest specificity, then latest in source order). :hover/:focus/:active rules compete
+    // only against other rules of the same state, so a button's hover color is found without hovering it.
+    // Returns Map('bg|' | 'color|' | 'bg|hover' | ...  ->  { spec, order, names }).
+    function winningDeclarations(el) {
+        const winners = new Map();
+        let order = 0;
+        const groupOf = (prop) => /^background/.test(prop) ? 'bg' : /^border/.test(prop) ? 'border' : /^outline/.test(prop) ? 'outline' : prop;
+
+        const consider = (rule, spec, state) => {
+            order++;
+            // Declarations come from cssText so var() survives inside shorthands (border, background...).
+            rule.style.cssText.split(/;(?![^(]*\))/).forEach(decl => {
+                const i = decl.indexOf(':');
+                if (i < 0) return;
+                const prop = decl.slice(0, i).trim().toLowerCase();
+                const names = varNamesIn(decl.slice(i + 1));
+                const key = groupOf(prop) + '|' + state;
+                const prev = winners.get(key);
+                if (!prev || compareSpecificity(spec, prev.spec) > 0 || (compareSpecificity(spec, prev.spec) === 0 && order > prev.order)) {
+                    winners.set(key, { spec, order, names });
+                }
+            });
+        };
+
+        const walk = (rules) => {
+            for (const rule of rules) {
+                if (rule.cssRules && !rule.selectorText) { walk(rule.cssRules); continue; } // @media / @supports
+                if (!rule.selectorText || !rule.style) continue;
+                let best = null, bestState = '';
+                rule.selectorText.split(',').forEach(part => {
+                    part = part.trim();
+                    if (/^(:root|html)\b/.test(part)) return; // theme blocks declare values, they don't consume tokens
+                    const spec = selectorSpecificity(part);
+                    const state = (part.match(/:(hover|focus-visible|focus-within|focus|active)(?![\w-])/) || ['', ''])[1];
+                    let test = part.replace(/::[\w-]+/g, '').replace(/:(hover|focus-visible|focus-within|focus|active)(?![\w-])/g, '');
+                    if (!test || /[>+~]$/.test(test)) return;
+                    try { if (!el.matches(test)) return; } catch (e) { return; }
+                    if (!best || compareSpecificity(spec, best) > 0) { best = spec; bestState = state; }
+                });
+                if (best) consider(rule, best, bestState);
+            }
+        };
+        for (const sheet of el.ownerDocument.styleSheets) {
+            if (sheet.ownerNode && sheet.ownerNode.id === 'td-theme-override') continue;
+            try { walk(sheet.cssRules); } catch (e) { /* cross-origin sheet: skip */ }
+        }
+        return winners;
+    }
+
+    // Which theme variables control how `el` looks: the tokens in the declarations that win for it, plus
+    // the nearest ancestor's text color / background when el doesn't set its own (they inherit / show through).
+    function variablesForFrameElement(el) {
+        const result = [];
+        const add = (names) => names.forEach(n => { if (cssVariables.includes(n) && !result.includes(n)) result.push(n); });
+
+        const own = winningDeclarations(el);
+        own.forEach(w => add(w.names));
+
+        let needBg = !own.has('bg|'), needColor = !own.has('color|');
+        for (let p = el.parentElement; p && (needBg || needColor); p = p.parentElement) {
+            const up = winningDeclarations(p);
+            if (needBg && up.has('bg|')) { add(up.get('bg|').names); needBg = false; }
+            if (needColor && up.has('color|')) { add(up.get('color|').names); needColor = false; }
+        }
+
+        const nonFont = result.filter(v => !/^--font-/.test(v));
+        return nonFont.length ? nonFont : result;
     }
 
     // Run setup on load

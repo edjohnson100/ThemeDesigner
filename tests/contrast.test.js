@@ -54,7 +54,10 @@ function contrastRatio(colorA, colorB) {
     return (lighter + 0.05) / (darker + 0.05);
 }
 
+const SURFACE_DISTINCT_MIN = 1.3;
+
 function classifyContrast(ratio, role) {
+    if (role === 'surface-distinct') return ratio >= SURFACE_DISTINCT_MIN ? 'pass-aa' : 'fail';
     if (ratio >= 4.5) return 'pass-aa';
     if (role === 'normal-text' && ratio >= 3) return 'pass-large';
     if (role === 'ui-component' && ratio >= 3) return 'pass-aa';
@@ -270,6 +273,64 @@ assertEqual(JSON.stringify(hslToRgb(rgbToHsl({ r: 122, g: 122, b: 122 }))), JSON
     const suggestion = computeSuggestedColor(fg, constraints);
     const rgb = parseColor(suggestion);
     assertEqual(constraints.every(c => contrastRatio(rgb, c.bg) >= c.threshold - 0.01), true, `computeSuggestedColor(${suggestion}) satisfies every constraint simultaneously`);
+}
+
+// --- surface-distinct role (secondary button must not vanish into its surface) ---
+assertEqual(classifyContrast(1.3, 'surface-distinct'), 'pass-aa', '1.3:1 surface-distinct is exactly the floor');
+assertEqual(classifyContrast(1.29, 'surface-distinct'), 'fail', '1.29:1 surface-distinct fails');
+assertEqual(classifyContrast(21, 'surface-distinct'), 'pass-aa', 'a high ratio trivially clears surface-distinct');
+// Real pre-fix case: Default Light's #e0e0e0 secondary button on #f5f5f5 body is ~1.21:1 and must fail.
+assertEqual(checkContrastPair('#e0e0e0', '#f5f5f5', 'surface-distinct').status, 'fail', 'Default Light btn-secondary on bg-body (pre-fix) fails the visibility floor');
+assertEqual(checkContrastPair('#d6d6d6', '#f5f5f5', 'surface-distinct').status, 'pass-aa', 'Default Light btn-secondary on bg-body (post-fix #d6d6d6) clears the floor');
+
+// --- Fallback resolution + drift guard against the real files ---
+// resolveVar() is mirrored here (small, pure); FALLBACKS and the style.css rules are read from the real
+// files so this fails if the three — the JS map, the theme blocks, and the rules' var() fallbacks — drift.
+const fs = require('fs');
+const path = require('path');
+const appHtml = fs.readFileSync(path.join(__dirname, '..', 'ThemeDesigner.html'), 'utf8');
+const styleCss = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+const fallbackBlock = appHtml.match(/const FALLBACKS = \{([\s\S]*?)\n    \};/)[1];
+const FALLBACKS = {};
+for (const m of fallbackBlock.matchAll(/'(--[\w-]+)':\s*'([^']+)'/g)) FALLBACKS[m[1]] = m[2];
+
+function resolveVar(vars, name) {
+    for (let i = 0; i < 10 && name !== undefined; i++) {
+        if (vars && vars[name]) return vars[name];
+        const fb = FALLBACKS[name];
+        if (fb === undefined) return undefined;
+        if (!fb.startsWith('--')) return fb;
+        name = fb;
+    }
+    return undefined;
+}
+
+assertEqual(Object.keys(FALLBACKS).length, 34, 'FALLBACKS covers exactly the 34 variables added in v1.6.0');
+assertEqual(resolveVar({ '--row-bg': '#fff' }, '--section-bg'), '#fff', 'unset --section-bg derives from --row-bg');
+assertEqual(resolveVar({ '--section-bg': '#abc', '--row-bg': '#fff' }, '--section-bg'), '#abc', 'an explicit value beats the fallback');
+assertEqual(resolveVar({ '--tab-active-text': '#09f' }, '--link-hover'), '#09f', 'two-hop chain: --link-hover -> --link -> --tab-active-text');
+assertEqual(resolveVar({}, '--btn-danger'), '#b02a37', 'a literal fallback resolves with nothing else defined');
+assertEqual(resolveVar({}, '--bg-body'), undefined, 'a token with no fallback and no value is undefined');
+
+{
+    const themeBlocks = [...styleCss.matchAll(/(?:\[data-theme="([^"]+)"\]|:root)\s*\{([^}]+)\}/g)];
+    assertEqual(themeBlocks.length >= 7, true, 'style.css has its bundled theme blocks');
+    for (const [, name, body] of themeBlocks) {
+        const missing = Object.keys(FALLBACKS).filter(v => !new RegExp(`${v}\\s*:`).test(body));
+        assertEqual(missing.join(','), '', `bundled theme "${name || 'Default Light'}" defines every v1.6.0 token`);
+    }
+    const stripped = styleCss.replace(/(?:\[data-theme="[^"]+"\]|:root)\s*\{[^}]+\}/g, ''); // rules only, no theme blocks
+    const unconsumed = Object.keys(FALLBACKS).filter(v => !stripped.includes(`var(${v}`));
+    assertEqual(unconsumed.join(','), '', 'every v1.6.0 token is consumed by at least one rule in style.css');
+    const driftList = [];
+    for (const [v, fb] of Object.entries(FALLBACKS)) {
+        for (const m of stripped.matchAll(new RegExp(`var\\(${v},\\s*([^;}]*)`, 'g'))) {
+            const expectFirst = fb.startsWith('--') ? `var(${fb}` : fb;
+            if (!m[1].trim().startsWith(expectFirst) && !(fb.startsWith('--') && m[1].includes(`var(${fb}`))) driftList.push(`${v}: rule "${m[1].trim()}" vs map "${fb}"`);
+        }
+    }
+    assertEqual(driftList.join(' | '), '', 'every rule fallback in style.css agrees with the FALLBACKS map');
 }
 
 console.log(`\n${passCount} passed, ${failCount} failed`);
